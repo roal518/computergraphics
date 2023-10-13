@@ -28,6 +28,7 @@ GLuint vertexshader, fragmentshader;
 GLuint shaderProgramID;
 coord midline[3][2];
 coord cube[8];
+coord tetra[5];
 GLuint vao; // 삼각형 개수 저장
 GLuint cubevbo; // 색상,정점 위치 저장
 GLuint tetravbo;
@@ -59,33 +60,42 @@ unsigned int cubelinedice[] = {
 	4,3,3,2,2,4
 };
 unsigned int tetradices[] = {
-	0,1,2,
-	0,2,3,
-	0,3,1,
-	1,3,2
+	0,2,1,0,3,2,
+	0,1,4,
+	1,2,4,
+	2,3,4,
+	3,0,4
 };
-
-
+unsigned int tetralinedice[] = {
+	0,2,2,1,1,0,
+	0,3,3,2,2,0,
+	0,1,1,4,4,0,
+	1,2,2,4,4,1,
+	2,3,3,4,4,2,
+	3,0,0,4,4,3
+};
 void specialKeys(int key, int x, int y);
 void keyboard(unsigned char key, int x, int y);
 void rotation(int val);
 void drawmidline();
 void initbuffer();
 void drawcube();
+void drawtetra();
 GLvoid drawScene();
 void makeshape();
 void make_cube();
+void make_tetra();
 void make_shaderProgram();
 void make_vertexShaders();
 void make_fragmentShaders();
 char* filetobuf(const char* file);
 GLvoid Reshape(int w, int h);
 
-int drawpoly = 1;
+int drawpoly = 0;
 int rotating_mode = 0;
 bool already_run = false;
 bool cullface = true;
-int drawmode = 1;
+int drawmode = 0;
 float Xmove = 0;
 float Ymove = 0;
 float Zmove = 0;
@@ -180,6 +190,15 @@ void keyboard(unsigned char key, int x, int y) {
 	if (key == 's') {
 		rotating_mode = -1;
 		already_run = false;
+		Xmove = 0;
+		Ymove = 0;
+		Zmove = 0;
+	}
+	if (key == 'c') {
+		drawpoly = 1;
+	}
+	if (key == 'p') {
+		drawpoly = 0;
 	}
 	glutPostRedisplay();
 }
@@ -215,8 +234,12 @@ GLvoid drawScene() {
 		glDisable(GL_DEPTH_TEST);
 	}
 	drawmidline();
-	drawcube();
-	
+	if (drawpoly == 1) {
+		drawcube();
+	}
+	else if (drawpoly == 0) {
+		drawtetra();
+	}
 	glutSwapBuffers();
 }
 void drawmidline() {
@@ -242,16 +265,22 @@ void drawcube() {
 	GLuint modelMatrixLocation = glGetUniformLocation(shaderProgramID, "modelMatrix");
 	glm::vec3 center(0.0f, 0.0f, 0.0f);
 	glm::mat4 modelMatrix = glm::mat4(1.0f);
-	glm::mat4 AxisMatrix = glm::mat4(1.0f);
+	glm::mat4 rotationMatrix = glm::mat4(1.0f);
+	glm::mat4 scaleMatrix = glm::mat4(1.0f);
+	glm::mat4 translationMatrix = glm::mat4(1.0f);
+	scaleMatrix = glm::scale(scaleMatrix, glm::vec3(0.5f, 0.5f, 0.5f));
+	modelMatrix *= scaleMatrix;
 
-	center = glm::vec3(Xmove, Ymove, Zmove);
+	rotationMatrix = glm::rotate(rotationMatrix, glm::radians(-30.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+	modelMatrix *= rotationMatrix;
 
-	modelMatrix = glm::translate(modelMatrix, -center);
-	//modelMatrix = glm::rotate(modelMatrix, glm::radians(-cube_Xtheta), glm::vec3(1.0f, 0.0f, 0.0f));
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(cube_Xtheta), glm::vec3(1.0f, 0.0f, 0.0f));
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(cube_Ytheta), glm::vec3(0.0f, 1.0f, 0.0f));
-	modelMatrix = glm::translate(modelMatrix, center);
-	modelMatrix = glm::scale(modelMatrix, glm::vec3(0.5f, 0.5f, 0.5f));
+	translationMatrix = glm::translate(translationMatrix, glm::vec3(Xmove, Ymove, Zmove));
+	modelMatrix *= translationMatrix;
+
+	rotationMatrix = glm::rotate(rotationMatrix, glm::radians(cube_Xtheta), glm::vec3(1.0f, 0.0f, 0.0f));
+	rotationMatrix = glm::rotate(rotationMatrix, glm::radians(cube_Ytheta), glm::vec3(0.0f, 1.0f, 0.0f));
+	rotationMatrix = glm::rotate(rotationMatrix, glm::radians(30.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+	modelMatrix *= rotationMatrix;
 
 	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelMatrix));
 
@@ -285,6 +314,57 @@ void drawcube() {
 
 	}
 }
+void drawtetra() {
+	GLuint modelMatrixLocation = glGetUniformLocation(shaderProgramID, "modelMatrix");
+	glm::mat4 modelMatrix = glm::mat4(1.0f);
+	glm::mat4 rotationMatrix = glm::mat4(1.0f);
+	glm::mat4 scaleMatrix = glm::mat4(1.0f);
+	glm::mat4 translationMatrix = glm::mat4(1.0f);
+
+	rotationMatrix = glm::rotate(rotationMatrix, glm::radians(-30.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+	modelMatrix *=
+		modelMatrix *= rotationMatrix;
+	translationMatrix = glm::translate(translationMatrix, glm::vec3(Xmove, Ymove, Zmove));
+	modelMatrix *= translationMatrix;
+	rotationMatrix = glm::rotate(rotationMatrix, glm::radians(cube_Xtheta), glm::vec3(1.0f, 0.0f, 0.0f));
+	rotationMatrix = glm::rotate(rotationMatrix, glm::radians(cube_Ytheta), glm::vec3(0.0f, 1.0f, 0.0f));
+	rotationMatrix = glm::rotate(rotationMatrix, glm::radians(30.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+	modelMatrix *= rotationMatrix;
+	scaleMatrix = glm::scale(scaleMatrix, glm::vec3(0.05f, 0.05f, 0.05f));
+
+	modelMatrix *= scaleMatrix;
+	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelMatrix));
+
+	if (drawmode == 0) {
+		glBindBuffer(GL_ARRAY_BUFFER, tetravbo);
+		glBufferData(GL_ARRAY_BUFFER, 5 * 6 * sizeof(float), tetra, GL_STATIC_DRAW);
+
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(tetradices), tetradices, GL_STATIC_DRAW);
+
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 0);
+		glEnableVertexAttribArray(0);
+
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+		glEnableVertexAttribArray(1);
+		glDrawElements(GL_TRIANGLES, 18, GL_UNSIGNED_INT, 0);
+	}
+	else if (drawmode == 1) {
+		glLineWidth(2.0f);
+		glBindBuffer(GL_ARRAY_BUFFER, tetravbo);
+		glBufferData(GL_ARRAY_BUFFER, 5 * 6 * sizeof(float), tetra, GL_STATIC_DRAW);
+
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(tetralinedice), tetralinedice, GL_STATIC_DRAW);
+
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 0);
+		glEnableVertexAttribArray(0);
+
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+		glEnableVertexAttribArray(1);
+		glDrawElements(GL_LINES, 36, GL_UNSIGNED_INT, 0);
+
+	}
+}
+
 void initbuffer() {
 	glUseProgram(shaderProgramID);
 	glBindVertexArray(vao);
@@ -337,8 +417,35 @@ void makeshape() {
 	//**보는 시점기준**
 	//정면
 	make_cube();
-	//**정사면체
-	//정면
+	//**사각뿔
+	//정면h
+	make_tetra();
+}
+void make_tetra() {
+	tetra[0].x = -3;
+	tetra[0].y = -3;
+	tetra[0].z = 3;
+
+	tetra[1].x = -3;
+	tetra[1].y = -3;
+	tetra[1].z = -3;
+
+	tetra[2].x = 3;
+	tetra[2].y = -3;
+	tetra[2].z = -3;
+
+	tetra[3].x = 3;
+	tetra[3].y = -3;
+	tetra[3].z = 3;
+
+	tetra[4].x = 0;
+	tetra[4].y = 6;
+	tetra[4].z = 0;
+	for (int i = 0; i < 4; i++) {
+		tetra[i].r = static_cast<float>(rand()) / RAND_MAX;
+		tetra[i].g = static_cast<float>(rand()) / RAND_MAX;
+		tetra[i].b = static_cast<float>(rand()) / RAND_MAX;
+	}
 }
 void make_cube() {
 	//정면 좌상단
