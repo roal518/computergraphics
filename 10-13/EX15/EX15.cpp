@@ -9,9 +9,9 @@
 #include <gl/glew.h>
 #include <gl/freeglut.h>
 #include <gl/freeglut_ext.h>
-#include <gl/glm/glm/glm.hpp>
-#include <gl/glm/glm/ext.hpp>
-#include <gl/glm/glm/gtc/matrix_transform.hpp>
+#include <gl/glm/glm.hpp>
+#include <gl/glm/ext.hpp>
+#include <gl/glm/gtc/matrix_transform.hpp>
 
 #define WINDOWS_HEIGHT 800
 #define WINDOWS_WIDTH 600
@@ -28,15 +28,14 @@ GLuint vertexshader, fragmentshader;
 GLuint shaderProgramID;
 coord midline[3][2];
 coord cube[8];
-bool iscubedraw[6];
-coord tetra[4];
-bool istetradraw[4];
 GLuint vao; // 삼각형 개수 저장
 GLuint cubevbo; // 색상,정점 위치 저장
 GLuint tetravbo;
 GLuint midvbo;
 GLuint ebo;
-
+float cube_Xtheta = 30.0f;
+float cube_Ytheta = 30.0f;
+float cube_Ztheta = 0.0f;
 unsigned int cubedices[] = {
 	0, 1, 2, 0, 2, 3,   // 정면 삼각형
 	4, 5, 6, 6, 7, 4,   // 후면 삼각형
@@ -45,13 +44,31 @@ unsigned int cubedices[] = {
 	0, 7, 6, 0, 6, 1,   // 좌측 삼각형
 	2, 5, 4, 4, 3, 2    // 우측 삼각형
 };
+unsigned int cubelinedice[] = {
+	0,1,1,2,2,0,
+	0,2,2,3,3,0,
+	4,5,5,6,6,4,
+	6,7,7,4,4,6,
+	0,3,3,4,4,0,
+	0,4,4,7,7,0,
+	1,6,6,5,5,1,
+	5,2,2,1,1,5,
+	0,7,7,6,6,0,
+	0,6,6,1,1,0,
+	2,5,5,4,4,2,
+	4,3,3,2,2,4
+};
 unsigned int tetradices[] = {
 	0,1,2,
 	0,2,3,
 	0,3,1,
 	1,3,2
 };
+
+
+void specialKeys(int key, int x, int y);
 void keyboard(unsigned char key, int x, int y);
+void rotation(int val);
 void drawmidline();
 void initbuffer();
 void drawcube();
@@ -64,6 +81,14 @@ void make_fragmentShaders();
 char* filetobuf(const char* file);
 GLvoid Reshape(int w, int h);
 
+int drawpoly = 1;
+int rotating_mode = 0;
+bool already_run = false;
+bool cullface = true;
+int drawmode = 1;
+float Xmove = 0;
+float Ymove = 0;
+float Zmove = 0;
 void main(int argc, char** argv) {
 	srand(unsigned(time(NULL)));
 	glutInit(&argc, argv);
@@ -73,98 +98,125 @@ void main(int argc, char** argv) {
 	glutCreateWindow("EX 15");
 	glewExperimental = GL_TRUE;
 	glewInit();
+	initbuffer();
 	makeshape();
 	make_shaderProgram();
 	glutDisplayFunc(drawScene);
 	glutReshapeFunc(Reshape);
 	glutKeyboardFunc(keyboard);
+	glutSpecialFunc(specialKeys);
 	glutMainLoop();
 }
-int drawmode = 1;
+void specialKeys(int key, int x, int y) {
+	if (key == GLUT_KEY_LEFT) {
+		Xmove -= 0.01;
+	}
+	if (key == GLUT_KEY_RIGHT) {
+		Xmove += 0.01;
+	}
+	if (key == GLUT_KEY_UP) {
+		Ymove += 0.01;
+	}
+	if (key == GLUT_KEY_DOWN) {
+		Ymove -= 0.01;
+	}
+	glutPostRedisplay();
+}
 void keyboard(unsigned char key, int x, int y) {
-	if (key == '1') {
-		drawmode = 1;
-		if (!iscubedraw[0]) {
-			iscubedraw[0] = true;
+	if (key == 'X') {
+		if (!already_run) {
+			rotating_mode = 1;
+			glutTimerFunc(30, rotation, 0);
+			already_run = true;
 		}
-		else {
-			iscubedraw[0] = false;
-		}
-	}
-	if (key == '2') {
-		drawmode = 1;
-		if (!iscubedraw[1]) {
-			iscubedraw[1] = true;
-		}
-		else {
-			iscubedraw[1] = false;
+		else if (already_run) {
+			rotating_mode = 1;
 		}
 	}
-	if (key == '3') {
-		drawmode = 1;
-		if (!iscubedraw[2]) {
-			iscubedraw[2] = true;
+	if (key == 'x') {
+		if (!already_run) {
+			rotating_mode = 0;
+			glutTimerFunc(30, rotation, 0);
+			already_run = true;
 		}
-		else {
-			iscubedraw[2] = false;
-		}
-	}
-	if (key == '4') {
-		drawmode = 1;
-		if (!iscubedraw[3]) {
-			iscubedraw[3] = true;
-		}
-		else {
-			iscubedraw[3] = false;
+		else if (already_run) {
+			rotating_mode = 0;
 		}
 	}
-	if (key == '5') {
-		drawmode = 1;
-		if (!iscubedraw[4]) {
-			iscubedraw[4] = true;
+	if (key == 'Y') {
+		if (!already_run) {
+			rotating_mode = 2;
+			glutTimerFunc(30, rotation, 0);
+			already_run = true;
 		}
-		else {
-			iscubedraw[4] = false;
-		}
-	}
-	if (key == '6') {
-		drawmode = 1;
-		if (!iscubedraw[5]) {
-			iscubedraw[5] = true;
-		}
-		else {
-			iscubedraw[5] = false;
+		else if (already_run) {
+			rotating_mode = 2;
 		}
 	}
-	if (key == 'c') {
+	if (key == 'y') {
+		if (!already_run) {
+			rotating_mode = 3;
+			glutTimerFunc(30, rotation, 0);
+			already_run = true;
+		}
+		else if (already_run) {
+			rotating_mode = 3;
+		}
+	}
+	if (key == 'h') {
+		if (cullface) {
+			cullface = false;
+		}
+		else {
+			cullface = true;
+		}
+	}
+	if (key == 'w') {
 		drawmode = 1;
-		int index1 = rand() % 6;
-		int index2 = rand() % 6;
-		for (int i = 0; i < 6; i++) {
-			iscubedraw[i] = false;
-		}
-		while (true) {
-			if (index1 == index2) {
-				index2 = rand() % 6;
-			}
-			else {
-				iscubedraw[index1] = true;
-				iscubedraw[index2] = true;
-				break;
-			}
-		}
+	}
+	if (key == 'W') {
+		drawmode = 0;
+	}
+	if (key == 's') {
+		rotating_mode = -1;
+		already_run = false;
+	}
+	glutPostRedisplay();
+}
+void rotation(int val) {
+	if (rotating_mode == 0) {
+		cube_Xtheta -= 1;
+		glutTimerFunc(30, rotation, 0);
+	}
+	else if (rotating_mode == 1) {
+		cube_Xtheta += 1;
+		glutTimerFunc(30, rotation, 0);
+	}
+	else if (rotating_mode == 2) {
+		cube_Ytheta += 1;
+		glutTimerFunc(30, rotation, 0);
+	}
+	else if (rotating_mode == 3) {
+		cube_Ytheta -= 1;
+		glutTimerFunc(30, rotation, 0);
+	}
+	else {
+		return;
 	}
 	glutPostRedisplay();
 }
 GLvoid drawScene() {
 	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	glEnable(GL_DEPTH_TEST);
-	drawmidline();
-	if (drawmode == 1) {
-		drawcube();
+	if (cullface) {
+		glEnable(GL_DEPTH_TEST);
 	}
+	else {
+		glDisable(GL_DEPTH_TEST);
+	}
+	drawmidline();
+	drawcube();
+	
 	glutSwapBuffers();
 }
 void drawmidline() {
@@ -187,58 +239,59 @@ void drawmidline() {
 	}
 }
 void drawcube() {
-	initbuffer();
+	GLuint modelMatrixLocation = glGetUniformLocation(shaderProgramID, "modelMatrix");
+	glm::vec3 center(0.0f, 0.0f, 0.0f);
+	glm::mat4 modelMatrix = glm::mat4(1.0f);
+	glm::mat4 AxisMatrix = glm::mat4(1.0f);
+
+	center = glm::vec3(Xmove, Ymove, Zmove);
+
+	modelMatrix = glm::translate(modelMatrix, -center);
+	//modelMatrix = glm::rotate(modelMatrix, glm::radians(-cube_Xtheta), glm::vec3(1.0f, 0.0f, 0.0f));
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(cube_Xtheta), glm::vec3(1.0f, 0.0f, 0.0f));
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(cube_Ytheta), glm::vec3(0.0f, 1.0f, 0.0f));
+	modelMatrix = glm::translate(modelMatrix, center);
+	modelMatrix = glm::scale(modelMatrix, glm::vec3(0.5f, 0.5f, 0.5f));
+
+	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelMatrix));
+
+
+	if (drawmode == 0) {
+		glBindBuffer(GL_ARRAY_BUFFER, cubevbo);
+		glBufferData(GL_ARRAY_BUFFER, 8 * 6 * sizeof(float), cube, GL_STATIC_DRAW);
+
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cubedices), cubedices, GL_STATIC_DRAW);
+
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 0);
+		glEnableVertexAttribArray(0);
+
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+		glEnableVertexAttribArray(1);
+		glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+	}
+	else if (drawmode == 1) {
+		glLineWidth(2.0f);
+		glBindBuffer(GL_ARRAY_BUFFER, cubevbo);
+		glBufferData(GL_ARRAY_BUFFER, 8 * 6 * sizeof(float), cube, GL_STATIC_DRAW);
+
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cubelinedice), cubelinedice, GL_STATIC_DRAW);
+
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 0);
+		glEnableVertexAttribArray(0);
+
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+		glEnableVertexAttribArray(1);
+		glDrawElements(GL_LINES, 72, GL_UNSIGNED_INT, 0);
+
+	}
 }
 void initbuffer() {
 	glUseProgram(shaderProgramID);
 	glBindVertexArray(vao);
-
 	glGenBuffers(1, &cubevbo);
+	glGenBuffers(1, &tetravbo);
 	glGenBuffers(1, &ebo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-
-	GLuint modelMatrixLocation = glGetUniformLocation(shaderProgramID, "modelMatrix");
-	glm::mat4 modelMatrix = glm::mat4(1.0f);
-	modelMatrix = glm::scale(modelMatrix, glm::vec3(0.5f, 0.5f, 0.5f));
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(30.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(30.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(5.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelMatrix));
-
-	glBindBuffer(GL_ARRAY_BUFFER, cubevbo);
-	glBufferData(GL_ARRAY_BUFFER, 8 * 6 * sizeof(float), cube, GL_STATIC_DRAW);
-
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cubedices), cubedices, GL_STATIC_DRAW);
-
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 0);
-	glEnableVertexAttribArray(0);
-
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(1);
-	if (iscubedraw[0]) {
-		int i = 0;
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)(6 * i * sizeof(float)));
-	}
-	if (iscubedraw[1]) {
-		int i = 1;
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)(6 * i * sizeof(float)));
-	}
-	if (iscubedraw[2]) {
-		int i = 2;
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)(6 * i * sizeof(float)));
-	}
-	if (iscubedraw[3]) {
-		int i = 3;
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)(6 * i * sizeof(float)));
-	}
-	if (iscubedraw[4]) {
-		int i = 4;
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)(6 * i * sizeof(float)));
-	}
-	if (iscubedraw[5]) {
-		int i = 5;
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)(6 * i * sizeof(float)));
-	}
 }
 void makeshape() {
 	//0->X 1->Y 2->Z
@@ -288,9 +341,6 @@ void makeshape() {
 	//정면
 }
 void make_cube() {
-	for (int i = 0; i < 6; i++) {
-		iscubedraw[i] = false;
-	}
 	//정면 좌상단
 	cube[0].x = -0.5f;
 	cube[0].y = 0.5f;
