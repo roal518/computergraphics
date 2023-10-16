@@ -181,6 +181,10 @@ void mouse(int button, int state, int x, int y) {
 		isclicked = false;
 		ismoving = false;
 	}
+	if (button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN) {
+		makeLine();
+		glutPostRedisplay();
+	}
 }
 bool change_sign(float a, float b) {
 	if ((a > 0 && b <= 0) || (a <= 0 && b > 0)) {
@@ -198,9 +202,9 @@ void ray_casting(int x, int y) {
 	float minHeight = 1;
 	float maxlength = -1;
 	float minlength = 1;
-	bool checkonce[4];
-	float MP[4];
-
+	bool checkonce[4];//부호의 변화를 받자 한번이라도 바뀌면 검출이 된다. true일땐  함수 실행 필요 x
+	float MP[4];//이전 연산값 저장 현재 연산값과 비교해서 변화가 나오면 check를 바꾼다.
+	//길이 검출
 	for (int i = 0; i < 4; i++) {
 		if (maxHeight < line[i].y) {
 			maxHeight = line[i].y;
@@ -217,32 +221,24 @@ void ray_casting(int x, int y) {
 		checkonce[i] = false;
 		MP[i] = 0;
 	}
-
 	int count = 0;
 	float temp = 0;
 	float t = 0;
-
 	if ((minHeight < normalY && normalY < maxHeight) && (minlength < normalX && normalX < maxlength)) {
 		for (int n = 0; n < 4; n++) {
 			if (!checkonce[n]) {
-				for (int i = 1; i < 99; i++) {
-					float sbX = (1 - t) * line[n].x + t * line[(n + 1) % 4].x;
-					if (sbX < normalX) {
-						MP[n] = (1 - t) * line[n].y + t * line[(n + 1) % 4].y - normalY;
-						temp = (1 - (i + 1) / 100.0f) * line[n].y + (i + 1) / 100.0f * line[(n + 1) % 4].y - normalY;
-						if (change_sign(MP[n], temp)) {
-							checkonce[n] = true;
-							count++;
-							break;
-						}
-					}
-					t += 0.01;
-				}
+				if (line[n].x < normalX && line[(n + 1) % 4].x < normalX) {
+					printf("line[%d] out\n ", n);
+				}//검출 대상에서 완전히 제외되는 케이스
+				else if ((line[n].x < normalX && normalX < line[(n + 1) % 4].x) || (line[(n + 1) % 4].x < normalX && normalX < line[n].x)) {
+					printf("line[%d] get break 2\n ", n);
+				}//normalX가 비교 대상 사이에 있을때
+				else {
+					printf("line[%d] plus\n ", n);
+				}//비교 대상이 현재 더 앞에 있는 경우
 			}
 		}
-		if (count % 2 == 1) {
-			ismoving = true;
-		}
+		ismoving = true;
 	}
 	else {
 		ismoving = false;
