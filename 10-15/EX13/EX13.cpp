@@ -224,21 +224,48 @@ void ray_casting(int x, int y) {
 	int count = 0;
 	float temp = 0;
 	float t = 0;
-	if ((minHeight < normalY && normalY < maxHeight) && (minlength < normalX && normalX < maxlength)) {
+	if ((minHeight <= normalY && normalY <= maxHeight) && (minlength <= normalX && normalX <= maxlength)) {
 		for (int n = 0; n < 4; n++) {
-			if (!checkonce[n]) {
-				if (line[n].x < normalX && line[(n + 1) % 4].x < normalX) {
-					printf("line[%d] out\n ", n);
-				}//검출 대상에서 완전히 제외되는 케이스
-				else if ((line[n].x < normalX && normalX < line[(n + 1) % 4].x) || (line[(n + 1) % 4].x < normalX && normalX < line[n].x)) {
-					printf("line[%d] get break 2\n ", n);
-				}//normalX가 비교 대상 사이에 있을때
-				else {
-					printf("line[%d] plus\n ", n);
-				}//비교 대상이 현재 더 앞에 있는 경우
-			}
+			if (line[n].x < normalX && line[(n + 1) % 4].x < normalX) {
+				checkonce[n] = false;
+			}//검출 대상에서 완전히 제외되는 케이스
+			else if (line[n].x < normalX && normalX < line[(n + 1) % 4].x) {
+				float t = (normalY - line[(n + 1) % 4].y) / (line[n].y - line[(n + 1) % 4].y);
+				printf("in %d its t: %f\n", n, t);
+				float u = (normalX - line[(n + 1) % 4].x) / (line[n].x - line[(n + 1) % 4].x);
+				printf("u %f\n", u);
+				if (0.0f < t && t < 1.0f) {
+					checkonce[n] = true;
+					count++;
+					printf("true : %d\n", n);
+				}
+			}//normalX가 비교 대상 사이에 있을때
+			else if (line[(n + 1) % 4].x < normalX && normalX < line[n].x) {
+				float t = (normalY - line[n].y) / (line[(n + 1) % 4].y - line[n].y);
+				printf("in %d its t: %f\n", n, t);
+				float u = (normalX - line[n].x) / (line[(n + 1) % 4].x - line[n].x);
+				printf("in %d its t: %f\n", n, t);
+				if (0.0f < t && t < 1.0f) {
+					checkonce[n] = true;
+					count++;
+					printf("true : %d\n", n);
+				}
+			}//normalX가 비교 대상 사이에 있을때
+			else {
+				if ((line[(n + 1) % 4].y < normalY && normalY < line[n].y) || (line[n].y < normalY && normalY < line[(n + 1) % 4].y)) {
+					checkonce[n] = true;
+				}
+				if (checkonce[n]) {
+					count++;
+					printf("true : %d\n", n);
+				}
+				printf("line[%d] plus\n ", n);
+			}//비교 대상이 현재 더 앞에 있는 경우
 		}
-		ismoving = true;
+		printf("count:%d\n", count);
+		if (count % 2 == 1) {
+			ismoving = true;
+		}
 	}
 	else {
 		ismoving = false;
