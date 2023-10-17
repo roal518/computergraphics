@@ -233,22 +233,28 @@ void ray_casting(int x, int y) {
 				float t = (normalY - line[(n + 1) % 4].y) / (line[n].y - line[(n + 1) % 4].y);
 				printf("in %d its t: %f\n", n, t);
 				float u = (normalX - line[(n + 1) % 4].x) / (line[n].x - line[(n + 1) % 4].x);
-				printf("u %f\n", u);
+				float onX = (1 - t) * line[(n + 1) % 4].x + t * line[n].x;
+				printf("onX %f\tnormalX: %f\n", onX, normalX);
 				if (0.0f < t && t < 1.0f) {
-					checkonce[n] = true;
-					count++;
-					printf("true : %d\n", n);
+					if (onX > normalX) {
+						checkonce[n] = true;
+						count++;
+						printf("true : %d\n", n);
+					}
 				}
 			}//normalX가 비교 대상 사이에 있을때
 			else if (line[(n + 1) % 4].x < normalX && normalX < line[n].x) {
 				float t = (normalY - line[n].y) / (line[(n + 1) % 4].y - line[n].y);
 				printf("in %d its t: %f\n", n, t);
 				float u = (normalX - line[n].x) / (line[(n + 1) % 4].x - line[n].x);
+				float onX = (1 - t) * line[n].x + t * line[(n + 1) % 4].x;
 				printf("in %d its t: %f\n", n, t);
 				if (0.0f < t && t < 1.0f) {
-					checkonce[n] = true;
-					count++;
-					printf("true : %d\n", n);
+					if (onX > normalX) {
+						checkonce[n] = true;
+						count++;
+						printf("true : %d\n", n);
+					}
 				}
 			}//normalX가 비교 대상 사이에 있을때
 			else {
