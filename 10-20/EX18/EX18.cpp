@@ -8,9 +8,9 @@
 #include <gl/glew.h>
 #include <gl/freeglut.h>
 #include <gl/freeglut_ext.h>
-#include <gl/glm/glm/glm.hpp>
-#include <gl/glm/glm/ext.hpp>
-#include <gl/glm/glm/gtc/matrix_transform.hpp>
+#include <gl/glm/glm.hpp>
+#include <gl/glm/ext.hpp>
+#include <gl/glm/gtc/matrix_transform.hpp>
 #define WINDOWS_HEIGHT 800
 #define WINDOWS_WIDTH 600
 struct coord {
@@ -52,8 +52,6 @@ GLuint midvbo;
 GLuint ebo;
 
 void keyboard(unsigned char key, int x, int y);
-void specialkey(int keyboard, int x, int y);
-
 void get_cube();
 void spin(int val);
 void scale(int val);
@@ -62,6 +60,7 @@ void open_front(int val);
 void Y_axis_spin(int val);
 void makeshape();
 void t1_spin(int val);
+void rand_spin(int val);
 void make_tetra();
 void make_cube();
 void initbuffer();
@@ -74,7 +73,7 @@ char* filetobuf(const char* file);
 void draw2page();
 float theta = 0;
 float Ytheta = 0;
-
+float tetrathetaY = 0.0f;
 float tetratheta[4] = { 0.0f ,0.0f ,0.0f ,0.0f };
 float opentheta = 0;
 float scaling = 5.0f;
@@ -93,7 +92,7 @@ void menu() {
 	printf("o: 사각뿔 전체 회전\n");
 	printf("r: 사각뿔 한면 회전\n");
 	printf("p: 직각 투영/원근 투영\n");
-	
+
 }
 void main(int argc, char** argv) {
 	menu();
@@ -109,7 +108,6 @@ void main(int argc, char** argv) {
 	makeshape();
 	make_shaderProgram();
 	glutKeyboardFunc(keyboard);
-	glutSpecialFunc(specialkey);
 	glutDisplayFunc(drawScene);
 	glutReshapeFunc(Reshape);
 	glutMainLoop();
@@ -123,6 +121,10 @@ bool all_spin = false;
 bool p2_spin = false;
 bool p3_spin = false;
 bool p4_spin = false;
+bool change_poly = false;
+bool is_back = false;
+int rand1, rand2;
+bool proj_mode = false;
 void keyboard(unsigned char key, int x, int y) {
 	if (key == 'h') {
 		if (!is_culling) {
@@ -184,6 +186,9 @@ void keyboard(unsigned char key, int x, int y) {
 	if (key == 'o') {
 		if (!all_spin) {
 			all_spin = true;
+			if (p2_spin) {
+				p2_spin = false;
+			}
 			glutTimerFunc(30, t1_spin, 0);
 		}
 		else {
@@ -192,34 +197,82 @@ void keyboard(unsigned char key, int x, int y) {
 		}
 	}
 	if (key == 'r') {
+		if (!is_back) {
+			rand1 = rand() % 4;
+			rand2 = rand() % 4;
+			is_back = true;
+		}
+		while (rand1 == rand2) {
+			rand2 = rand() % 4;
+		}
+		printf("%d, %d\n", rand1, rand2);
 		if (!p2_spin) {
+
 			p2_spin = true;
-			glutTimerFunc(30, t1_spin, 0);
+			glutTimerFunc(30, rand_spin, 0);
 		}
 		else {
 			p2_spin = false;
-			glutTimerFunc(30, t1_spin, 0);
+			glutTimerFunc(30, rand_spin, 0);
 		}
 	}
 	if (key == 'p') {
-
+		if (!proj_mode) {
+			proj_mode = true;
+		}
+		else {
+			proj_mode = false;
+		}
 	}
 	if (key == 'c') {
-
+		if (!change_poly) {
+			change_poly = true;
+		}
+		else {
+			change_poly = false;
+		}
 	}
 	glutPostRedisplay();
 }
+bool random_spin = false;
 bool turn_time = false;
 bool limitheight = false;
 bool limitangle = false;
+bool checkt90 = false;
+void rand_spin(int val) {
+	if (p2_spin) {
+		if (tetrathetaY >= 0) {
+			tetrathetaY--;
+			all_spin = false;
+		}
+		if (!checkt90) {
+			tetratheta[rand1]++;
+			tetratheta[rand2]++;
+			if (tetratheta[rand1] >= 90) {
+				checkt90 = true;
+				p2_spin = false;
+			}
+		}
+		else {
+			tetratheta[rand1]--;
+			tetratheta[rand2]--;
+			if (tetratheta[rand1] <= 0) {
+				checkt90 = false;
+				p2_spin = false;
+				is_back = false;
+			}
+		}
+
+		glutTimerFunc(30, rand_spin, 0);
+	}
+	glutPostRedisplay();
+}
 void t1_spin(int val) {
 	if (all_spin) {
-		for (int i = 0; i < 4; i++) {
-			if (tetratheta[i] >= 233) {
-				all_spin = false;
-			}
-			tetratheta[i]++;
+		if (tetrathetaY >= 233) {
+			all_spin = false;
 		}
+		tetrathetaY++;		
 		glutTimerFunc(30, t1_spin, 0);
 	}
 	else {
@@ -304,9 +357,6 @@ void Y_axis_spin(int val) {
 	}
 	glutPostRedisplay();
 }
-void specialkey(int keyboard, int x, int y) {
-	
-}
 void drawmidline() {
 	glLineWidth(2.0f);
 	glUseProgram(shaderProgramID);
@@ -366,7 +416,7 @@ void draw3page() {
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.5f, 0.0f));
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(30.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(30.0f + Ytheta), glm::vec3(0.0f, 1.0f, 0.0f));
-	modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, -0.5f, 0.0f)); 
+	modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, -0.5f, 0.0f));
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(Xmove, Ymove, Zmove));
 	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelMatrix));
 
@@ -380,14 +430,14 @@ void draw4page() {
 
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.5f, 0.0f));
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(30.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(30.0f+Ytheta), glm::vec3(0.0f, 1.0f, 0.0f));
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(30.0f + Ytheta), glm::vec3(0.0f, 1.0f, 0.0f));
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, -0.5f, 0.0f));
 
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.5f, 0.5f));
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(opentheta), glm::vec3(1.0f, 0.0f, 0.0f));
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, -0.5f, -0.5f));
 	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelMatrix));
-	
+
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)(0 * sizeof(float)));
 }
 void get_cube() {
@@ -424,13 +474,13 @@ void tetra1p() {
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(30.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(30.0f + Ytheta), glm::vec3(0.0f, 1.0f, 0.0f));
 
-	modelMatrix = glm::translate(modelMatrix, glm::vec3(-3.0f, 0.0f,0.0f));
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(tetratheta[0]), glm::vec3(0.0f, 0.0f, 1.0f));
+	modelMatrix = glm::translate(modelMatrix, glm::vec3(-3.0f, 0.0f, 0.0f));
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(tetrathetaY +tetratheta[0]), glm::vec3(0.0f, 0.0f, 1.0f));
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(3.0f, 0.0f, 0.0f));
 
 	//	modelMatrix = glm::rotate(modelMatrix, glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	//modelMatrix = glm::translate(modelMatrix, glm::vec3(3.0f, 6.0f, 0.0f));
-	
+
 	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelMatrix));
 
 	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, (void*)(6 * sizeof(float)));//뒤,바닥
@@ -442,8 +492,8 @@ void tetra2p() {
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(30.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(30.0f + Ytheta), glm::vec3(0.0f, 1.0f, 0.0f));
 
-	modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f,-3.0f));
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(-tetratheta[1]), glm::vec3(1.0f, 0.0f, 0.0f));
+	modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, -3.0f));
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(-tetrathetaY - tetratheta[1]), glm::vec3(1.0f, 0.0f, 0.0f));
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 3.0f));
 	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelMatrix));
 
@@ -458,7 +508,7 @@ void tetra3p() {
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(30.0f + Ytheta), glm::vec3(0.0f, 1.0f, 0.0f));
 
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(3.0f, 0.0f, 0.0f));
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(-tetratheta[2]), glm::vec3(0.0f, 0.0f, 1.0f));
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(-tetrathetaY -tetratheta[2]), glm::vec3(0.0f, 0.0f, 1.0f));
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(-3.0f, 0.0f, 0.0f));
 	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelMatrix));
 
@@ -473,7 +523,7 @@ void tetra4p() {
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(30.0f + Ytheta), glm::vec3(0.0f, 1.0f, 0.0f));
 
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 3.0f));
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(tetratheta[3]), glm::vec3(1.0f, 0.0f, 0.0f));
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(tetrathetaY +tetratheta[3]), glm::vec3(1.0f, 0.0f, 0.0f));
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, -3.0f));
 	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelMatrix));
 
@@ -633,11 +683,20 @@ void viewproj() {
 	GLuint viewLocation = glGetUniformLocation(shaderProgramID, "viewTransform");
 	glm::mat4 view = glm::mat4(1.0f);
 	glm::mat4 projection = glm::mat4(1.0f);
+	if (!proj_mode) {
+		projection = glm::ortho(-25.0f, 25.0f, -25.0f, 25.0f, -25.0f, 25.0f);
+		projection = glm::translate(projection, glm::vec3(0.0, 0.0, -2.0));
+		glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, glm::value_ptr(projection));
 
-	projection = glm::ortho(-25.0f, 25.0f, -25.0f, 25.0f, -25.0f, 25.0f);
+	}
+	else {
+		projection = glm::perspective(glm::radians(100.0f), 0.8f, 0.1f, 50.0f);
+		projection = glm::translate(projection, glm::vec3(0.0, 0.0, -25.0));
+		glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, glm::value_ptr(projection));
+
+	}
 	view = glm::translate(view, glm::vec3(0.0f, 0.0f, 0.0f));
 	glUniformMatrix4fv(viewLocation, 1, GL_FALSE, glm::value_ptr(view));
-	glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, glm::value_ptr(projection));
 
 }
 GLvoid drawScene() {
@@ -650,8 +709,12 @@ GLvoid drawScene() {
 	else {
 		glDisable(GL_DEPTH_TEST);
 	}
-	//get_cube();
-	get_tetra();
+	if (change_poly) {
+		get_cube();
+	}
+	else {
+		get_tetra();
+	}
 	drawmidline();
 	glutSwapBuffers();
 }
