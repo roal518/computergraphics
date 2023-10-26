@@ -54,8 +54,9 @@ GLuint ebo;
 void Move_crane(int val);//crane moving animate
 void Top_spin_crane(int val);
 void Son_spin(int val);
-
-
+void Horn_spin(int val);
+void go_to_mid_arm(int val);
+void go_to_mid_horn(int val);
 
 
 
@@ -109,15 +110,21 @@ bool is_move_foward = false;
 bool is_top = false;//top_spin running check timerfunc oh shit
 bool is_top_spin = false;
 bool is_son = false;
+bool is_horn = false;
+bool is_equal_arm = false;
+bool is_equal_horn = false;
+bool is_x_come = false;
+bool is_y_come = false;
 
-
-
+float x_horn_equal = 7.5f;
+float x_arm_equal = 15.0f;
 float x_cam_move = 0.0f;
 float y_cam_move = 0.0f;
 float z_cam_move = 0.0f;
 float x_crane_move = 0.0f;
 float y_crane_theta_mom = 0.0f;
 float y_crane_theta_son = 0.0f;//only horn,arm spinng
+float y_crane_horn = 0.0f;
 void keyboard(unsigned char key, int x, int y) {
 	if (key == 'p') {
 
@@ -131,10 +138,10 @@ void keyboard(unsigned char key, int x, int y) {
 		}
 	}
 	if (key == 'w') {
-		z_cam_move ++;
+		z_cam_move++;
 	}
 	if (key == 's') {
-		z_cam_move --;
+		z_cam_move--;
 	}
 	if (key == 'y') {
 		//rotate
@@ -223,17 +230,56 @@ void keyboard(unsigned char key, int x, int y) {
 			is_son = false;
 		}
 	}
+	if (key == 't') {
+		if (!is_horn) {
+			is_horn = true;
+			glutTimerFunc(30, Horn_spin, 0);
+		}
+		else {
+			is_horn = false;
+		}
+	}
 	if (key == 'e') {
-
+		is_son = false;
+		is_horn = false;
+		is_y_come = true;
+		is_x_come = true;
+		is_equal_arm = true;
+		is_equal_horn = true;
+		glutTimerFunc(30, go_to_mid_arm, 0);
+		glutTimerFunc(30, go_to_mid_horn, 0);
 	}
 	if (key == 'E') {
 
 	}
-	if (key == 't') {
-
-	}
 	if (key == 'T') {
 
+	}
+	if (key == 's') {
+		is_move = false;//move_crane running check timerfunc
+		is_move_foward = false;
+		is_top = false;//top_spin running check timerfunc oh shit
+		is_top_spin = false;
+		is_son = false;
+		is_horn = false;
+		is_equal_arm = false;
+		is_equal_horn = false;
+		is_x_come = false;
+		is_y_come = false;
+	}
+	glutPostRedisplay();
+}
+void Horn_spin(int val) {
+	if (is_horn) {
+		y_crane_horn++;
+		glutTimerFunc(30, Horn_spin, 0);
+	}
+	if (is_x_come) {//actually it gets y rotating for horn
+		if (y_crane_horn / 360 == 0) {
+			is_y_come = false;
+		}
+		y_crane_horn--;
+		glutTimerFunc(30, Horn_spin, 0);
 	}
 	glutPostRedisplay();
 }
@@ -273,10 +319,61 @@ void Top_spin_crane(int val) {
 	}
 	glutPostRedisplay();
 }
-void Son_spin(int val) {
+void Son_spin(int val) {//arm rotate
 	if (is_son) {
 		y_crane_theta_son++;
 		glutTimerFunc(30, Son_spin, 0);
+	}
+	if (is_y_come) {
+		if (y_crane_theta_son / 360 == 0) {
+			is_y_come = false;
+		}
+		y_crane_theta_son--;
+		glutTimerFunc(30, Son_spin, 0);
+	}
+	glutPostRedisplay();
+}
+bool arm_swap = false;
+void go_to_mid_arm(int val) {
+	if (is_equal_arm) {
+		if (x_arm_equal <= 0) {
+			is_equal_arm = false;
+			arm_swap = true;
+		}
+		x_arm_equal-=0.1f;
+		glutTimerFunc(30, go_to_mid_arm, 0);
+	}
+	else {
+		if (arm_swap) {
+			if (x_arm_equal >= 15) {
+				is_equal_arm = false;
+				arm_swap = false;
+			}
+			x_arm_equal += 0.1f;
+			glutTimerFunc(30, go_to_mid_arm, 0);
+		}
+	}
+	glutPostRedisplay();
+}
+bool horn_swap = false;
+void go_to_mid_horn(int val) {
+	if (is_equal_horn) {
+		if (x_horn_equal <= 0) {
+			is_equal_horn = false;
+			horn_swap = true;
+		}
+		x_horn_equal -= 0.1f;
+		glutTimerFunc(30, go_to_mid_horn, 0);
+	}
+	else {
+		if (horn_swap) {
+			if (x_horn_equal >= 7.5) {
+				is_equal_horn = false;
+				horn_swap = false;
+			}
+			x_horn_equal += 0.1f;
+			glutTimerFunc(30, go_to_mid_horn, 0);
+		}
 	}
 	glutPostRedisplay();
 }
@@ -364,7 +461,7 @@ void draw_R_arm() {
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(10.f), glm::vec3(0.0f, 1.0f, 0.0f));
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(x_crane_move, 0.0f, 0.0f));
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(-y_crane_theta_mom), glm::vec3(0.0f, 1.0f, 0.0f));
-	modelMatrix = glm::translate(modelMatrix, glm::vec3(7.5f, 0, 0));
+	modelMatrix = glm::translate(modelMatrix, glm::vec3(x_arm_equal, 0, 0));
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(-y_crane_theta_son), glm::vec3(0.0f, 1.0f, 0.0f));
 	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelMatrix));
 	glBindBuffer(GL_ARRAY_BUFFER, arm_vbo);
@@ -386,7 +483,7 @@ void draw_L_arm() {
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(10.f), glm::vec3(0.0f, 1.0f, 0.0f));
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(x_crane_move, 0.0f, 0.0f));
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(-y_crane_theta_mom), glm::vec3(0.0f, 1.0f, 0.0f));
-	modelMatrix = glm::translate(modelMatrix, glm::vec3(-7.5f, 0, 0));
+	modelMatrix = glm::translate(modelMatrix, glm::vec3(-x_arm_equal, 0, 0));
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(y_crane_theta_son), glm::vec3(0.0f, 1.0f, 0.0f));
 	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelMatrix));
 	glBindBuffer(GL_ARRAY_BUFFER, arm_vbo);
@@ -408,8 +505,10 @@ void draw_R_horn() {
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(10.f), glm::vec3(0.0f, 1.0f, 0.0f));
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(x_crane_move, 0.0f, 0.0f));
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(y_crane_theta_mom), glm::vec3(0.0f, 1.0f, 0.0f));
-	modelMatrix = glm::translate(modelMatrix, glm::vec3(7.5f, 0, 0));
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(-y_crane_theta_son), glm::vec3(0.0f, 1.0f, 0.0f));
+	modelMatrix = glm::translate(modelMatrix, glm::vec3(x_horn_equal, 0, 0));
+	modelMatrix = glm::translate(modelMatrix, glm::vec3(0, 0, 15));
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(-y_crane_horn), glm::vec3(0.0f, 0.0f, 1.0f));
+	modelMatrix = glm::translate(modelMatrix, glm::vec3(0, 0, -15));
 	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelMatrix));
 	glBindBuffer(GL_ARRAY_BUFFER, horn_vbo);
 	glBufferData(GL_ARRAY_BUFFER, 8 * 6 * sizeof(float), horn, GL_STATIC_DRAW);
@@ -430,8 +529,10 @@ void draw_L_horn() {
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(10.f), glm::vec3(0.0f, 1.0f, 0.0f));
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(x_crane_move, 0.0f, 0.0f));
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(y_crane_theta_mom), glm::vec3(0.0f, 1.0f, 0.0f));
-	modelMatrix = glm::translate(modelMatrix, glm::vec3(-7.5f, 0, 0));
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(y_crane_theta_son), glm::vec3(0.0f, 1.0f, 0.0f));
+	modelMatrix = glm::translate(modelMatrix, glm::vec3(-x_horn_equal, 0, 0));
+	modelMatrix = glm::translate(modelMatrix, glm::vec3(0, 0, 15));
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(y_crane_horn), glm::vec3(0.0f, 0.0f, 1.0f));
+	modelMatrix = glm::translate(modelMatrix, glm::vec3(0, 0, -15));
 	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelMatrix));
 	glBindBuffer(GL_ARRAY_BUFFER, horn_vbo);
 	glBufferData(GL_ARRAY_BUFFER, 8 * 6 * sizeof(float), horn, GL_STATIC_DRAW);
@@ -447,7 +548,7 @@ void draw_L_horn() {
 }
 void robot() {
 	draw_head();//dae-ga-ri
-	
+
 	draw_R_horn();
 	draw_L_horn();
 
@@ -461,16 +562,17 @@ void viewproj() {
 	GLuint viewLocation = glGetUniformLocation(shaderProgramID, "viewTransform");
 	glm::mat4 view = glm::mat4(1.0f);
 	view = glm::translate(view, glm::vec3(x_cam_move, 0, z_cam_move));
-	view = glm::rotate(view, glm::radians(10.f), glm::vec3(1.0f, 0.0f, 0.0f));
-	view = glm::rotate(view, glm::radians(10.f), glm::vec3(0.0f, 1.0f, 0.0f));
 	view = glm::rotate(view, glm::radians(y_cam_move), glm::vec3(0.0f, 1.0f, 0.0f));
-	view = glm::translate(view, glm::vec3(0.0, 0.0, -100.0));
 
+	view = glm::rotate(view, glm::radians(-10.f), glm::vec3(1.0f, 0.0f, 0.0f));
+	view = glm::rotate(view, glm::radians(-10.f), glm::vec3(0.0f, 1.0f, 0.0f));
+
+	view = glm::translate(view, glm::vec3(0.0, -1.0, -200.0));
 	glUniformMatrix4fv(viewLocation, 1, GL_FALSE, glm::value_ptr(view));
 
 	glm::mat4 projection = glm::mat4(1.0f);
-	projection = glm::perspective(glm::radians(35.0f), 1.0f, 0.1f, 400.0f);
-	projection = glm::translate(projection, glm::vec3(0.0, 0.0, -100.0));
+	projection = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 400.0f);
+	projection = glm::translate(projection, glm::vec3(0.0, -1.0, -100.0));
 	glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, glm::value_ptr(projection));
 }
 GLvoid drawScene() {
@@ -484,7 +586,7 @@ GLvoid drawScene() {
 	glutSwapBuffers();
 }
 GLvoid Reshape(int w, int h) {
-	glViewport(0, 0, w , h );
+	glViewport(0, 0, w, h);
 
 }
 
@@ -529,7 +631,7 @@ void make_ground() {
 	ground[2].z = -100.f;
 	ground[3].x = 100.f;
 	ground[3].z = -100.f;
-	
+
 }
 void make_head() {
 	head[0].x = -10.f;
@@ -538,7 +640,7 @@ void make_head() {
 
 	head[1].x = -10.f;
 	head[1].z = -5.f;
-	head[1].y = 10.f; 
+	head[1].y = 10.f;
 
 	head[2].x = 10.f;
 	head[2].z = -5.f;
