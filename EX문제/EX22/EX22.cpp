@@ -8,9 +8,9 @@
 #include <gl/glew.h>
 #include <gl/freeglut.h>
 #include <gl/freeglut_ext.h>
-#include <gl/glm/glm/glm.hpp>
-#include <gl/glm/glm/ext.hpp>
-#include <gl/glm/glm/gtc/matrix_transform.hpp>
+#include <gl/glm/glm.hpp>
+#include <gl/glm/ext.hpp>
+#include <gl/glm/gtc/matrix_transform.hpp>
 #define WINDOWS_HEIGHT 800
 #define WINDOWS_WIDTH 600
 struct coord {
@@ -25,10 +25,8 @@ GLchar* vertexSource, * fragmentSource;
 GLuint vertexshader, fragmentshader;
 GLuint shaderProgramID;
 coord mainbox[10];
-coord robot_L_arm[8];
-coord robot_R_arm[8];
-coord robot_L_leg[8];
-coord robot_R_leg[8];
+coord robot_arm[8];
+coord robot_leg[8];
 coord robot_chest[8];
 coord robot_head[8];
 coord robot_nose[8];
@@ -98,7 +96,10 @@ void initbuffer() {
 	glBindVertexArray(vao);
 	glGenBuffers(1, &main_Box_vbo);
 	glGenBuffers(1, &main_Box_ebo);
+	glGenBuffers(1, &robot_vbo);
+	glGenBuffers(1, &robot_ebo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, main_Box_ebo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, robot_ebo);
 }
 
 void viewproj() {
@@ -107,9 +108,9 @@ void viewproj() {
 
 	glm::mat4 view = glm::mat4(1.0f);
 
-	view = glm::rotate(view, glm::radians(10.f), glm::vec3(1.0f, 0.0f, 0.0f));
-	view = glm::rotate(view, glm::radians(10.f), glm::vec3(0.0f, 1.0f, 0.0f));
-	view = glm::translate(view, glm::vec3(0.0, -50, -100));
+	//view = glm::rotate(view, glm::radians(10.f), glm::vec3(1.0f, 0.0f, 0.0f));
+	//view = glm::rotate(view, glm::radians(10.f), glm::vec3(0.0f, 1.0f, 0.0f));
+	view = glm::translate(view, glm::vec3(0.0, 0, -100));
 
 	glUniformMatrix4fv(viewLocation, 1, GL_FALSE, glm::value_ptr(view));
 
@@ -172,8 +173,72 @@ void draw_box() {
 
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
 	glEnableVertexAttribArray(1);
-	front_box();
+	//front_box();
 	other_box();
+}
+
+
+
+void draw_robot_chest() {
+
+	GLuint modelMatrixLocation = glGetUniformLocation(shaderProgramID, "modelMatrix");
+	glm::mat4 modelMatrix = glm::mat4(1.0f);
+	modelMatrix = glm::translate(modelMatrix, glm::vec3(0, -40.0f, 0.0f));
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(10.f), glm::vec3(1.0f, 0.0f, 0.0f));
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(10.f + theta_ex), glm::vec3(0.0f, 1.0f, 0.0f));
+
+	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelMatrix));
+	glBindBuffer(GL_ARRAY_BUFFER, robot_vbo);
+	glBufferData(GL_ARRAY_BUFFER, 8 * 6 * sizeof(float), robot_chest, GL_STATIC_DRAW);
+
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(robot_indices), robot_indices, GL_STATIC_DRAW);
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 0);
+	glEnableVertexAttribArray(0);
+
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+	glEnableVertexAttribArray(1);
+	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+
+}
+void draw_R_leg() {
+	GLuint modelMatrixLocation = glGetUniformLocation(shaderProgramID, "modelMatrix");
+	glm::mat4 modelMatrix = glm::mat4(1.0f);
+	modelMatrix = glm::translate(modelMatrix, glm::vec3(-2, -50.0f, 0.0f));
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(10.f), glm::vec3(1.0f, 0.0f, 0.0f));
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(10.f + theta_ex), glm::vec3(0.0f, 1.0f, 0.0f));
+
+	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelMatrix));
+	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+	
+}
+void draw_L_leg() {
+	GLuint modelMatrixLocation = glGetUniformLocation(shaderProgramID, "modelMatrix");
+	glm::mat4 modelMatrix = glm::mat4(1.0f);
+	modelMatrix = glm::translate(modelMatrix, glm::vec3(2, -50, 0));
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(10.f), glm::vec3(1.0f, 0.0f, 0.0f));
+	modelMatrix = glm::rotate(modelMatrix, glm::radians(10.f + theta_ex), glm::vec3(0.0f, 1.0f, 0.0f));
+
+	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelMatrix));
+	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+}
+void draw_robot_leg() {
+	glBindBuffer(GL_ARRAY_BUFFER, robot_vbo);
+	glBufferData(GL_ARRAY_BUFFER, 8 * 6 * sizeof(float),robot_leg, GL_STATIC_DRAW);
+
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(robot_indices), robot_indices, GL_STATIC_DRAW);
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 0);
+	glEnableVertexAttribArray(0);
+
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+	glEnableVertexAttribArray(1);
+	draw_R_leg();
+	draw_L_leg();
+}
+void draw_robot() {
+	draw_robot_leg();
+	draw_robot_chest();
 }
 GLvoid drawScene() {
 	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
@@ -181,6 +246,7 @@ GLvoid drawScene() {
 	glEnable(GL_DEPTH_TEST);
 	viewproj();
 	draw_box();
+	draw_robot();
 	glViewport(0, 0, 800, 600);
 
 	glutSwapBuffers();
@@ -261,207 +327,129 @@ void make_robot_head() {
 		robot_head[i].b = 0.0;
 	}
 }
-void make_robot_L_arm() {
+void make_robot_arm() {
 
 
-	robot_L_arm[0].x = -2.5f;
-	robot_L_arm[0].y = 5.f;
-	robot_L_arm[0].z = 2.5f;
+	robot_arm[0].x = -2.5f;
+	robot_arm[0].y = 5.f;
+	robot_arm[0].z = 2.5f;
 
-	robot_L_arm[1].x = -2.5f;
-	robot_L_arm[1].y = -5.f;
-	robot_L_arm[1].z = 2.5f;
+	robot_arm[1].x = -2.5f;
+	robot_arm[1].y = -5.f;
+	robot_arm[1].z = 2.5f;
 
-	robot_L_arm[2].x = 2.5f;
-	robot_L_arm[2].y = -5.f;
-	robot_L_arm[2].z = 2.5f;
+	robot_arm[2].x = 2.5f;
+	robot_arm[2].y = -5.f;
+	robot_arm[2].z = 2.5f;
 
-	robot_L_arm[3].x = 2.5f;
-	robot_L_arm[3].y = 5.f;
-	robot_L_arm[3].z = 2.5f;
+	robot_arm[3].x = 2.5f;
+	robot_arm[3].y = 5.f;
+	robot_arm[3].z = 2.5f;
 
-	robot_L_arm[4].x = 2.5f;
-	robot_L_arm[4].y = 5.f;
-	robot_L_arm[4].z = -2.5f;
+	robot_arm[4].x = 2.5f;
+	robot_arm[4].y = 5.f;
+	robot_arm[4].z = -2.5f;
 
-	robot_L_arm[5].x = 2.5f;
-	robot_L_arm[5].y = -5.f;
-	robot_L_arm[5].z = -2.5f;
+	robot_arm[5].x = 2.5f;
+	robot_arm[5].y = -5.f;
+	robot_arm[5].z = -2.5f;
 
-	robot_L_arm[6].x = -2.5f;
-	robot_L_arm[6].y = -5.f;
-	robot_L_arm[6].z = -2.5f;
+	robot_arm[6].x = -2.5f;
+	robot_arm[6].y = -5.f;
+	robot_arm[6].z = -2.5f;
 
-	robot_L_arm[7].x = -2.5f;
-	robot_L_arm[7].y = 5.f;
-	robot_L_arm[7].z = -2.5f;
+	robot_arm[7].x = -2.5f;
+	robot_arm[7].y = 5.f;
+	robot_arm[7].z = -2.5f;
 	for (int i = 0; i < 8; i++) {
-		robot_L_arm[i].r = 0;
-		robot_L_arm[i].g = 1;
-		robot_L_arm[i].b = 0;
-	}
-}
-void make_robot_R_arm() {
-
-	robot_R_arm[0].x = -2.5f;
-	robot_R_arm[0].y = 5.f;
-	robot_R_arm[0].z = 2.5f;
-
-	robot_R_arm[1].x = -2.5f;
-	robot_R_arm[1].y = -5.f;
-	robot_R_arm[1].z = 2.5f;
-
-	robot_R_arm[2].x = 2.5f;
-	robot_R_arm[2].y = -5.f;
-	robot_R_arm[2].z = 2.5f;
-
-	robot_R_arm[3].x = 2.5f;
-	robot_R_arm[3].y = 5.f;
-	robot_R_arm[3].z = 2.5f;
-
-	robot_R_arm[4].x = 2.5f;
-	robot_R_arm[4].y = 5.f;
-	robot_R_arm[4].z = -2.5f;
-
-	robot_R_arm[5].x = 2.5f;
-	robot_R_arm[5].y = -5.f;
-	robot_R_arm[5].z = -2.5f;
-
-	robot_R_arm[6].x = -2.5f;
-	robot_R_arm[6].y = -5.f;
-	robot_R_arm[6].z = -2.5f;
-
-	robot_R_arm[7].x = -2.5f;
-	robot_R_arm[7].y = 5.f;
-	robot_R_arm[7].z = -2.5f;
-	for (int i = 0; i < 8; i++) {
-		robot_R_arm[i].r = 0;
-		robot_R_arm[i].g = 1;
-		robot_R_arm[i].b = 0;
+		robot_arm[i].r = 0;
+		robot_arm[i].g = 1;
+		robot_arm[i].b = 0;
 	}
 }
 void make_robot_chest() {
 
 	robot_chest[0].x = -5.f;
-	robot_chest[0].y = 7.5f;
-	robot_chest[0].z = 5.f;
+	robot_chest[0].y = 5.f;
+	robot_chest[0].z = 2.5f;
 
 	robot_chest[1].x = -5.f;
-	robot_chest[1].y = -7.5f;
-	robot_chest[1].z = 5.f;
+	robot_chest[1].y = -5.f;
+	robot_chest[1].z = 2.5f;
 
 	robot_chest[2].x = 5.f;
-	robot_chest[2].y = -7.5f;
-	robot_chest[2].z = 5.f;
+	robot_chest[2].y = -5.f;
+	robot_chest[2].z = 2.5f;
 
 	robot_chest[3].x = 5.f;
-	robot_chest[3].y = 7.5f;
-	robot_chest[3].z = 5.f;
+	robot_chest[3].y = 5.f;
+	robot_chest[3].z = 2.5f;
 
 	robot_chest[4].x = 5.f;
-	robot_chest[4].y = 7.5f;
-	robot_chest[4].z = -5.f;
+	robot_chest[4].y = 5.f;
+	robot_chest[4].z = -2.5f;
 
 	robot_chest[5].x = 5.f;
-	robot_chest[5].y = -7.5f;
-	robot_chest[5].z = -5.f;
+	robot_chest[5].y = -5.f;
+	robot_chest[5].z = -2.5f;
 
 	robot_chest[6].x = -5.f;
-	robot_chest[6].y = -7.5f;
-	robot_chest[6].z = -5.f;
+	robot_chest[6].y = -5.f;
+	robot_chest[6].z = -2.5f;
 
 	robot_chest[7].x = -5.f;
-	robot_chest[7].y = 7.5f;
-	robot_chest[7].z = -5.f;
+	robot_chest[7].y = 5.f;
+	robot_chest[7].z = -2.5f;
 	for (int i = 0; i < 8; i++) {
 		robot_chest[i].r = 0;
 		robot_chest[i].g = 0;
 		robot_chest[i].b = 1;
 	}
 }
-void make_robot_R_leg() {
+void make_robot_leg() {
 
-	robot_R_leg[0].x = -2.5f;
-	robot_R_leg[0].y = 5.f;
-	robot_R_leg[0].z = 2.5f;
+	robot_leg[0].x = -0.5f;
+	robot_leg[0].y = 5.f;
+	robot_leg[0].z = -0.5f;
 
-	robot_R_leg[1].x = -2.5f;
-	robot_R_leg[1].y = -5.f;
-	robot_R_leg[1].z = 2.5f;
+	robot_leg[1].x = -0.5f;
+	robot_leg[1].y = -5.f;
+	robot_leg[1].z = 0.5f;
 
-	robot_R_leg[2].x = 2.5f;
-	robot_R_leg[2].y = -5.f;
-	robot_R_leg[2].z = 2.5f;
+	robot_leg[2].x = 0.5f;
+	robot_leg[2].y = -5.f;
+	robot_leg[2].z = 0.5f;
 
-	robot_R_leg[3].x = 2.5f;
-	robot_R_leg[3].y = 5.f;
-	robot_R_leg[3].z = 2.5f;
+	robot_leg[3].x = 0.5f;
+	robot_leg[3].y = 5.f;
+	robot_leg[3].z = 0.5f;
 
-	robot_R_leg[4].x = 2.5f;
-	robot_R_leg[4].y = 5.f;
-	robot_R_leg[4].z = -2.5f;
+	robot_leg[4].x = 0.5f;
+	robot_leg[4].y = 5.f;
+	robot_leg[4].z = -0.5f;
 
-	robot_R_leg[5].x = 2.5f;
-	robot_R_leg[5].y = -5.f;
-	robot_R_leg[5].z = -2.5f;
+	robot_leg[5].x = 0.5f;
+	robot_leg[5].y = -5.f;
+	robot_leg[5].z = -0.5f;
 
-	robot_R_leg[6].x = -2.5f;
-	robot_R_leg[6].y = -5.f;
-	robot_R_leg[6].z = -2.5f;
-
-	robot_R_leg[7].x = -2.5f;
-	robot_R_leg[7].y = 5.f;
-	robot_R_leg[7].z = -2.5f;
+	robot_leg[6].x = -0.5f;
+	robot_leg[6].y = -5.f;
+	robot_leg[6].z = -0.5f;
+	
+	robot_leg[7].x = -0.5f;
+	robot_leg[7].y = 5.f;
+	robot_leg[7].z = -0.5f;
 	for (int i = 0; i < 8; i++) {
-		robot_R_leg[i].r = 1;
-		robot_R_leg[i].g = 0;
-		robot_R_leg[i].b = 0;
-	}
-}
-void make_robot_L_leg() {
-
-	robot_L_leg[0].x = -2.5f;
-	robot_L_leg[0].y = 5.f;
-	robot_L_leg[0].z = 2.5f;
-
-	robot_L_leg[1].x = -2.5f;
-	robot_L_leg[1].y = -5.f;
-	robot_L_leg[1].z = 2.5f;
-
-	robot_L_leg[2].x = 2.5f;
-	robot_L_leg[2].y = -5.f;
-	robot_L_leg[2].z = 2.5f;
-
-	robot_L_leg[3].x = 2.5f;
-	robot_L_leg[3].y = 5.f;
-	robot_L_leg[3].z = 2.5f;
-
-	robot_L_leg[4].x = 2.5f;
-	robot_L_leg[4].y = 5.f;
-	robot_L_leg[4].z = -2.5f;
-
-	robot_L_leg[5].x = 2.5f;
-	robot_L_leg[5].y = -5.f;
-	robot_L_leg[5].z = -2.5f;
-
-	robot_L_leg[6].x = -2.5f;
-	robot_L_leg[6].y = -5.f;
-	robot_L_leg[6].z = -2.5f;
-
-	robot_L_leg[7].x = -2.5f;
-	robot_L_leg[7].y = 5.f;
-	robot_L_leg[7].z = -2.5f;
-	for (int i = 0; i < 8; i++) {
-		robot_L_leg[i].r = 1;
-		robot_L_leg[i].g = 0;
-		robot_L_leg[i].b = 0;
+		robot_leg[i].r = 1;
+		robot_leg[i].g = 0;
+		robot_leg[i].b = 0;
 	}
 }
 void make_main_box() {
 	mainbox[0].x = -50.f;
 	mainbox[0].y = 50.f;
 	mainbox[0].z = 50.f;
-	
+
 	mainbox[1].x = -50.f;
 	mainbox[1].y = -50.f;
 	mainbox[1].z = 50.f;
@@ -507,11 +495,9 @@ void make_main_box() {
 }
 void makeshape() {
 	make_main_box();
-	make_robot_L_leg();
-	make_robot_R_leg();
+	make_robot_leg();
 	make_robot_chest();
-	make_robot_R_arm();
-	make_robot_L_arm();
+	make_robot_arm();
 	make_robot_head();
 	make_robot_nose();
 }
