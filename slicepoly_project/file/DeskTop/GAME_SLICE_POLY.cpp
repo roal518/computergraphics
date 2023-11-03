@@ -155,11 +155,23 @@ void Keyboard(unsigned char key, int x, int y) {
 		printf("now_move_speed: %f\n", move_speed);
 	}
 }
-
+/// <summary>
+/// 
+/// </summary>
+/// <param name="ic"></param> intersection point array
+/// <param name="target"></param> target node
+/// <param name="line_n"></param> cross line number
 void real_slice(coord* ic, Node* target, int* line_n) {
 	target->mouse_node = 3;
-
-
+	if (line_n[0] - line_n[1] == 1 ||
+		line_n[0] - line_n[1] == -1 ||
+		(line_n[0] == 0 && line_n[1] == target->vertex_counter-1) ||
+		(line_n[1] == 0 && line_n[0] == target->vertex_counter-1)) { //교점이 바로 옆에 있을 때 무조건 n+1각형이 생성된다.
+		printf("in here\n");
+	}
+	else {//아닐때는 n각형 이하가 생성된다.
+		printf("hello\n");
+	}
 }
 void slice() {
 	coord mouse[2];
@@ -237,7 +249,7 @@ void Mouseclick(int button, int state, int x, int y) {
 	else if (button == GLUT_LEFT_BUTTON && state == GLUT_UP) {
 		//여기서 선분 캐스팅 해서 자르자
 		is_clicked = false;
-		//slice();
+		slice();
 	}
 	glutPostRedisplay();
 }
