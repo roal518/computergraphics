@@ -24,25 +24,27 @@ struct coord {
 	float g = 0;
 	float b = 0;
 };
+
 typedef struct Node {
 	coord* vertex;//정점 정보 저장 근데 이거맞냐?
+	coord* cp;
+	coord* ep;
 	int vertex_counter = 0;//vertex
-	float theta = 0;//회전 각
-	int mouse_node = 0;//0이면 폴리곤 노드,1이면 마우스 노드 
+	float index = 0;
+	int mouse_node = 0;//0이면 폴리곤 노드,1이면 마우스 노드,3이면 삭제대상인 노드 
 	struct Node* next;//// 단일 연결 리스트로 구성
 }Node;
-Node* createnode(coord data[], Node* next, int i, int m) {
+Node* createnode(coord* data, coord* cp, coord* ep, Node* next, int i, int m) {
 	Node* newnode;
 	newnode = (Node*)malloc(sizeof(Node));
 	newnode->vertex = data;
+	newnode->cp = cp;
+	newnode->ep = ep;
 	newnode->vertex_counter = i;
 	newnode->mouse_node = m;
-	newnode->theta = 0;
+	newnode->index = 0;
 	newnode->next = NULL;
 	return newnode;
-	//정점 정보를 받는다 정점은
-	//1. 랜덤정점-> 뭐라도 떨어져야 하니까
-	//2. 슬라이스 결과 정점-> 이후 추가 슬라이스 가능
 }
 void insert(Node** head, Node* newnode) {
 	if ((*head) == NULL) {
@@ -74,7 +76,6 @@ void Mouseclick(int button, int state, int x, int y);
 void Mousemove(int x, int y);
 void Delete(int val);
 
-
 GLvoid Reshape(int w, int h);
 
 char* filetobuf(const char* file);
@@ -87,10 +88,9 @@ float move_speed = 1;
 bool is_clicked = false;
 float get_delta_X;
 float get_delta_Y;
-void printmenu() {
 
-}
 void main(int argc, char** argv) {
+	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF || _CRTDBG_LEAK_CHECK_DF);
 	mouse_node_create();
 	srand(unsigned(time(NULL)));
 	glutInit(&argc, argv);
@@ -114,10 +114,14 @@ void timers() {
 	glutTimerFunc(create_speed, auto_polygon, 0);//폴리곤 생성 일단 disable?
 	glutTimerFunc(30, move_polygon, 0);
 	glutTimerFunc(30, Delete, 0);
+	glutPostRedisplay();
 }
+
 void mouse_node_create() {
 	int get_vertex = 2;
 	coord* vertex = NULL;
+	coord* cp = NULL;
+	coord* ep = NULL;
 	vertex = (coord*)malloc(get_vertex * sizeof(coord));
 	for (int j = 0; j < get_vertex; j++) {
 		vertex[j].r = 0;
@@ -127,7 +131,7 @@ void mouse_node_create() {
 		vertex[j].y = 0;
 		vertex[j].z = 0;
 	}
-	insert(&main_list, createnode(vertex, NULL, get_vertex, 1));
+	insert(&main_list, createnode(vertex, cp, ep, NULL, get_vertex, 1));
 }
 void Keyboard(unsigned char key, int x, int y) {
 	if (key == '[') {
@@ -141,12 +145,77 @@ void Keyboard(unsigned char key, int x, int y) {
 		printf("now_create_speed: %d\n", create_speed);
 	}
 	if (key == '-') {
-		move_speed -= 0.5;
+		if (move_speed > 1) {
+			move_speed -= 1;
+		}
 		printf("now_move_speed: %f\n", move_speed);
 	}
 	if (key == '=' || key == '+') {
-		move_speed += 0.5;
+		move_speed += 1;
 		printf("now_move_speed: %f\n", move_speed);
+	}
+}
+
+void real_slice(coord* ic, Node* target, int* line_n) {
+	target->mouse_node = 3;
+
+
+}
+void slice() {
+	coord mouse[2];
+	Node* horse = main_list;
+	while (horse != NULL) {
+		if (horse->mouse_node == 1) {
+			mouse[0].x = horse->vertex[0].x;
+			mouse[0].y = horse->vertex[0].y;
+			mouse[1].x = horse->vertex[1].x;
+			mouse[1].y = horse->vertex[1].y;
+			horse->vertex[0].x = 0;
+			horse->vertex[0].y = 0;
+			horse->vertex[1].x = 0;
+			horse->vertex[1].y = 0;
+			break;
+		}
+		else {
+			horse = horse->next;
+		}
+	}
+	horse = main_list;
+	while (horse != NULL) {
+		int line_n[2];//라인 번호 받을 예정 이걸로 슬라이스 후 좌 우 나눌때 쓸것
+		coord intersection[2];//교점의 좌표
+		int count = 0;
+		//여기서 두 선분의 교점의 보간점을 찾는다 t와 u가 0과 1사이면 교점을 형성한다.
+		for (int i = 0; i < horse->vertex_counter; i++) {
+			float t = ((mouse[0].x - horse->vertex[i].x) * (horse->vertex[i].y - horse->vertex[(i + 1) % horse->vertex_counter].y)
+				- (mouse[0].y - horse->vertex[i].y) * (horse->vertex[i].x - horse->vertex[(i + 1) % horse->vertex_counter].x))
+				/ ((mouse[0].x - mouse[1].x) * (horse->vertex[i].y - horse->vertex[(i + 1) % horse->vertex_counter].y)
+					- (mouse[0].y - mouse[1].y) * (horse->vertex[i].x - horse->vertex[(i + 1) % horse->vertex_counter].x));
+
+			float u = ((mouse[0].x - horse->vertex[i].x) * (mouse[0].y - mouse[1].y)
+				- (mouse[0].y - horse->vertex[i].y) * (mouse[0].x - mouse[1].x))
+				/ ((mouse[0].x - mouse[1].x) * (horse->vertex[i].y - horse->vertex[(i + 1) % horse->vertex_counter].y)
+					- (mouse[0].y - mouse[1].y) * (horse->vertex[i].x - horse->vertex[(i + 1) % horse->vertex_counter].x));
+			if ((0 <= t && t <= 1) && (0 <= u && u <= 1)) {
+				if (count == 0) {
+					line_n[0] = i;
+					intersection[0].x = mouse[0].x + t * (mouse[1].x - mouse[0].x);
+					intersection[0].y = mouse[0].y + t * (mouse[1].y - mouse[0].y);
+					printf("AP:%f\t%f\n", intersection[0].x, intersection[0].y);
+				}
+				else {
+					line_n[1] = i;
+					intersection[1].x = mouse[0].x + t * (mouse[1].x - mouse[0].x);
+					intersection[1].y = mouse[0].y + t * (mouse[1].y - mouse[0].y);
+					printf("BP:%f\t%f\n", intersection[1].x, intersection[1].y);
+				}
+				count++;
+			}
+		}
+		if (count == 2) {
+			real_slice(intersection, horse,line_n);
+		}
+		horse = horse->next;
 	}
 }
 void Mouseclick(int button, int state, int x, int y) {
@@ -161,8 +230,6 @@ void Mouseclick(int button, int state, int x, int y) {
 				get_delta_X = x;
 				get_delta_Y = y;
 				is_clicked = true;
-				printf("click: %d\n", horse->vertex_counter);
-				printf("X:%f\tY:%f\n", horse->vertex[0].x, horse->vertex[0].y);
 			}
 			horse = horse->next;
 		}
@@ -170,24 +237,9 @@ void Mouseclick(int button, int state, int x, int y) {
 	else if (button == GLUT_LEFT_BUTTON && state == GLUT_UP) {
 		//여기서 선분 캐스팅 해서 자르자
 		is_clicked = false;
-		Node* horse = main_list;
-		while (horse != NULL) {
-			if (horse->mouse_node == 1) {
-				horse->vertex[0].x = 0;
-				horse->vertex[0].y = 0;
-				horse->vertex[1].x = 0;
-				horse->vertex[1].y = 0;
-				printf("%d\n", horse->mouse_node);
-				break;
-			}
-			else {
-				horse = horse->next;
-			}
-		}
-
+		//slice();
 	}
 	glutPostRedisplay();
-
 }
 void Mousemove(int x, int y) {
 	if (is_clicked) {
@@ -196,7 +248,6 @@ void Mousemove(int x, int y) {
 			if (horse->mouse_node == 1) {
 				horse->vertex[1].x += (x - get_delta_X) / 400.f;;
 				horse->vertex[1].y -= (y - get_delta_Y) / 300.f;
-				printf("%d\n", horse->mouse_node);
 			}
 			horse = horse->next;
 		}
@@ -206,28 +257,52 @@ void Mousemove(int x, int y) {
 	}
 }
 void move_polygon(int val) {
-	//생성된 폴리곤을 움직이게 만들것
-	//control point 0 생성된 위치
-	//control point 1 x=0.3 y는 0.4
-	//control point 2 x=-0.3 y는 -0.4 
 	Node* horse = main_list;
-
 	while (horse != NULL) {
 		if (horse->mouse_node == 0) {
-			horse->theta += move_speed;
+			float t = horse->index / 1000.f;
+			if (horse->cp[0].x > 0) {
+				for (int i = 0; i < horse->vertex_counter; i++) {
+					horse->vertex[i].x = glm::pow((1 - t), 3) * horse->cp[i].x
+						+ 3 * glm::pow(t, 1) * glm::pow((1 - t), 2) * (-0.4 + horse->cp[i].x)
+						+ 3 * glm::pow(t, 2) * glm::pow((1 - t), 1) * (-0.7 + horse->cp[i].x)
+						+ glm::pow(t, 3) * horse->ep[i].x;
+					horse->vertex[i].y = glm::pow((1 - t), 3) * horse->cp[i].y
+						+ 3 * glm::pow(t, 1) * glm::pow((1 - t), 2) * (horse->cp[i].y + 0.3f)
+						+ 3 * glm::pow(t, 2) * glm::pow((1 - t), 1) * (horse->cp[i].y - 0.3f)
+						+ glm::pow(t, 3) * horse->ep[i].y;
+				}
+			}
+			else {
+				for (int i = 0; i < horse->vertex_counter; i++) {
+					horse->vertex[i].x = glm::pow((1 - t), 3) * horse->cp[i].x
+						+ 3 * glm::pow(t, 1) * glm::pow((1 - t), 2) * (0.4 + horse->cp[i].x)
+						+ 3 * glm::pow(t, 2) * glm::pow((1 - t), 1) * (0.7 + horse->cp[i].x)
+						+ glm::pow(t, 3) * horse->ep[i].x;
+					horse->vertex[i].y = glm::pow((1 - t), 3) * horse->cp[i].y
+						+ 3 * glm::pow(t, 1) * glm::pow((1 - t), 2) * (horse->cp[i].y + 0.3f)
+						+ 3 * glm::pow(t, 2) * glm::pow((1 - t), 1) * (horse->cp[i].y - 0.3f)
+						+ glm::pow(t, 3) * horse->ep[i].y;
+				}
+			}
+			horse->index += move_speed;
 		}
 		horse = horse->next;
 	}
-	glutTimerFunc(30, move_polygon, 0);
 	glutPostRedisplay();
+	glutTimerFunc(10, move_polygon, 0);
 }
 void auto_polygon(int val) {//폴리곤 자동생성
 	int get_rand_vertex = rand() % 4 + 3;// 3~6 각형만 생성하자
-	float mid_point_X = (rand() % 2 == 0) ? -1.2 : 1.2;
-	float mid_point_Y = 0.6 + ((float)rand() / RAND_MAX) * 0.5;
+	float mid_point_X = (rand() % 2 == 0) ? -1.1 : 1.1;
+	float mid_point_Y = static_cast<float>(rand()) / RAND_MAX;
 	coord* vertex = NULL;
+	coord* cp = NULL;
+	coord* ep = NULL;
+	float end_point_X = ((float)rand() / RAND_MAX) * 1.6 - 0.8;
 	vertex = (coord*)malloc(get_rand_vertex * sizeof(coord));
-
+	cp = (coord*)malloc(get_rand_vertex * sizeof(coord));
+	ep = (coord*)malloc(get_rand_vertex * sizeof(coord));
 	for (int j = 0; j < get_rand_vertex; j++) {
 		vertex[j].r = static_cast<float>(rand()) / RAND_MAX;
 		vertex[j].g = static_cast<float>(rand()) / RAND_MAX;
@@ -236,9 +311,17 @@ void auto_polygon(int val) {//폴리곤 자동생성
 		vertex[j].x = mid_point_X + 0.175f * glm::cos(angle);
 		vertex[j].y = mid_point_Y + 0.175f * glm::sin(angle);
 		vertex[j].z = 0;
+		cp[j].x = mid_point_X + 0.175f * glm::cos(angle);
+		cp[j].y = mid_point_Y + 0.175f * glm::sin(angle);
+		cp[j].z = 0;
 	}
-	insert(&main_list, createnode(vertex, NULL, get_rand_vertex, 0));
-	//	printf("%d\n", get_rand_vertex);
+	for (int j = 0; j < get_rand_vertex; j++) {
+		float angle = 2 * glm::pi<float>() * j / get_rand_vertex;
+		ep[j].x = end_point_X + 0.175f * glm::cos(angle);
+		ep[j].y = -1 + 0.175f * glm::sin(angle);
+		ep[j].z = 0;
+	}
+	insert(&main_list, createnode(vertex, cp, ep, NULL, get_rand_vertex, 0));
 	glutPostRedisplay();
 	glutTimerFunc(create_speed, auto_polygon, 0);
 }
@@ -252,15 +335,12 @@ void Delete(int val) {
 	Node* current = main_list;
 	Node* previous = NULL;
 	int idx = 0;
-	//여기서 문제가 있는듯?? 연속 삭제를 할 때 어떻게 문제가 생긴다
 	while (current != NULL) {
-		if (current->theta > 120.f && current->mouse_node == 0) {
+		if ((current->index > 1000.f && current->mouse_node == 0)|| current->mouse_node == 3) {
 			if (previous == NULL) {
-				// If the first node meets the condition, update the head
 				main_list = current->next;
 			}
 			else {
-				// For other nodes, update the 'next' pointer of the previous node
 				previous->next = current->next;
 			}
 			Node* del = current;
@@ -274,11 +354,11 @@ void Delete(int val) {
 		idx++;
 	}
 	glutTimerFunc(30, Delete, 0);
-} //삭제 조건 완성
+}
 void draw_poly(Node* list) {
 	Node* horse = list;
-	while (horse != NULL) {//리스트를 순회하면서 polygon draw
-		if (horse->mouse_node==1) {
+	while (horse != NULL) {
+		if (horse->mouse_node == 1) {
 			glm::mat4 modelMatrix = glm::mat4(1.0f);
 			GLuint modelMatrixLocation = glGetUniformLocation(shaderProgramID, "modelMatrix");
 			glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelMatrix));
@@ -291,20 +371,10 @@ void draw_poly(Node* list) {
 
 			glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
 			glEnableVertexAttribArray(1);
-			//glLineWidth(2.0f);
 			glDrawArrays(GL_LINES, 0, 2);
 		}
 		else if (horse->mouse_node == 0) {
 			glm::mat4 modelMatrix = glm::mat4(1.0f);
-			if (horse->vertex[0].x > 0) {
-				modelMatrix = glm::translate(modelMatrix, glm::vec3(0.65, -1.25, 0));
-				modelMatrix = glm::rotate(modelMatrix, glm::radians(horse->theta), glm::vec3(0.0f, 0.0f, 1.0f));//회전
-			}
-			else if (horse->vertex[0].x < 0) {
-				modelMatrix = glm::translate(modelMatrix, glm::vec3(-0.65, -1.25, 0));
-				modelMatrix = glm::rotate(modelMatrix, glm::radians(-horse->theta), glm::vec3(0.0f, 0.0f, 1.0f));//회전
-			}
-			//theta가 일정 값 이상이면 즉시 삭제하자!
 			GLuint modelMatrixLocation = glGetUniformLocation(shaderProgramID, "modelMatrix");
 			glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelMatrix));
 
@@ -317,8 +387,6 @@ void draw_poly(Node* list) {
 			glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
 			glEnableVertexAttribArray(1);
 			glDrawArrays(GL_POLYGON, 0, horse->vertex_counter);
-			//glDrawArrays(GL_LINE_STRIP, 0, horse->vertex_counter);
-
 			glBindBuffer(GL_ARRAY_BUFFER, 0);
 		}
 		horse = horse->next;
@@ -327,6 +395,7 @@ void draw_poly(Node* list) {
 GLvoid drawScene() {
 	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINEAR);
 	draw_poly(main_list);
 
 
@@ -346,7 +415,7 @@ char* filetobuf(const char* file) {
 	fseek(fptr, 0, SEEK_END);
 	length = ftell(fptr);
 	buf = (char*)malloc(length + 1);
-	fseek(fptr, 0, SEEK_SET);//끝까지 읽었으니까 다시 돌아가야겠지??
+	fseek(fptr, 0, SEEK_SET);
 	fread(buf, length, 1, fptr);
 	fclose(fptr);
 	buf[length] = 0;
@@ -354,19 +423,6 @@ char* filetobuf(const char* file) {
 }
 void make_vertexShaders() {
 	vertexSource = filetobuf("vertex.glsl");
-	vertexshader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vertexshader, 1, (const GLchar**)&vertexSource, 0);
-	glCompileShader(vertexshader);
-	GLint result;
-	GLchar errorLog[512];
-	glGetShaderiv(vertexshader, GL_COMPILE_STATUS, &result);
-	if (!result) {
-		glGetShaderInfoLog(vertexshader, 512, NULL, errorLog);
-		return;
-	}
-}
-void make_mouse_vertexShaders() {
-	vertexSource = filetobuf("Mouse_vertex.glsl");
 	vertexshader = glCreateShader(GL_VERTEX_SHADER);
 	glShaderSource(vertexshader, 1, (const GLchar**)&vertexSource, 0);
 	glCompileShader(vertexshader);
@@ -391,9 +447,7 @@ void make_fragmentShaders() {
 		return;
 	}
 }
-
 void make_shaderProgram() {
-	//make_mouse_vertexShaders();
 	make_vertexShaders();
 	make_fragmentShaders();
 	shaderProgramID = glCreateProgram();
@@ -405,35 +459,3 @@ void make_shaderProgram() {
 	glDeleteShader(fragmentshader);
 	glUseProgram(shaderProgramID);
 }
-
-
-
-
-
-
-// 노드 운영 중점
-// 개 복잡한데??
-// 하나로는 못쓰나
-// 
-// 노드에 뭘 담을것인가-> 1 삼각형 정점 정보 
-// 삭제가 매우 중요해졌다. -> 이미 밑으로 떨어진 폴리곤은 데이터 낭비가 된다.
-// 그럼 어쩌라고
-// 삼각형만 먼저 만들어본다.
-//2D 필요한거
-// 정점 회전/이동 끝?
-// 물체 이동 x축 시야 밖 생성
-// 이동은? -1.0~1.0 사이에 도착
-// 슬라이스
-// 정점 레이저 검사 하면 교점 위치 나옴->그걸로 슬라이스 하면 되지않나
-// 
-//10-25 일지
-//동적할당을 썼다.
-//삭제,생성을 고쳤음
-//리스트 하나로 여러개의 정점 얻을수 있다.
-// 
-//중요 1.
-// 이제 그리기
-// 자르기 
-// 마지막 이동 
-//  
-// //
