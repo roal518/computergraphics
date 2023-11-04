@@ -12,7 +12,7 @@
 #include <gl/glm/ext.hpp>
 #include <gl/glm/gtc/matrix_transform.hpp>
 
-#define WINDOWS_HEIGHT 800
+#define WINDOWS_HEIGHT	800
 #define WINDOWS_WIDTH 600
 
 
@@ -31,7 +31,7 @@ typedef struct Node {
 	coord* ep;
 	int vertex_counter = 0;//vertex
 	float index = 0;
-	int mouse_node = 0;//0이면 폴리곤 노드,1이면 마우스 노드 
+	int mouse_node = 0;//0이면 폴리곤 노드,1이면 마우스 노드,3이면 삭제대상인 노드 
 	struct Node* next;//// 단일 연결 리스트로 구성
 }Node;
 Node* createnode(coord* data, coord* cp, coord* ep, Node* next, int i, int m) {
@@ -39,7 +39,7 @@ Node* createnode(coord* data, coord* cp, coord* ep, Node* next, int i, int m) {
 	newnode = (Node*)malloc(sizeof(Node));
 	newnode->vertex = data;
 	newnode->cp = cp;
-	newnode->ep = ep;
+	newnode->ep = ep;//솔직히 이거 하나만 줄여도 메모리 반으로 절약한다.. 방법 찾기
 	newnode->vertex_counter = i;
 	newnode->mouse_node = m;
 	newnode->index = 0;
@@ -57,12 +57,9 @@ void insert(Node** head, Node* newnode) {
 	}
 }
 GLuint vao;
-GLuint vao_m;
 GLuint vbo;
 GLuint mouse_vbo;
-
 Node* main_list = NULL;
-
 GLchar* vertexSource, * fragmentSource, * vertexSource_for_mouse;
 GLuint vertexshader, fragmentshader, vertex_mouse_shader;
 GLuint shaderProgramID, shaderProgramID_m;
@@ -75,9 +72,7 @@ void Keyboard(unsigned char key, int x, int y);
 void Mouseclick(int button, int state, int x, int y);
 void Mousemove(int x, int y);
 void Delete(int val);
-
 GLvoid Reshape(int w, int h);
-
 char* filetobuf(const char* file);
 void make_vertexShaders();
 void make_fragmentShaders();
@@ -85,10 +80,11 @@ void make_shaderProgram();
 void mouse_node_create();
 int create_speed = 1000;
 float move_speed = 1;
+int max_polygon_shape = 3;
 bool is_clicked = false;
 float get_delta_X;
 float get_delta_Y;
-
+bool draw_mode = false;
 void main(int argc, char** argv) {
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF || _CRTDBG_LEAK_CHECK_DF);
 	mouse_node_create();
@@ -116,14 +112,7 @@ void timers() {
 	glutTimerFunc(30, Delete, 0);
 	glutPostRedisplay();
 }
-/// <summary>
-/// 슬라이스를 하려면?
-/// 1. 선분-면 검사
-/// </summary>
-/// <param name="target"></param>
-/// <param name="box"></param>
-/// <param name="length"></param>
-void mouse_node_create() {
+void mouse_node_create() {//마우스 노드에서 정점을 구하고 
 	int get_vertex = 2;
 	coord* vertex = NULL;
 	coord* cp = NULL;
@@ -137,7 +126,7 @@ void mouse_node_create() {
 		vertex[j].y = 0;
 		vertex[j].z = 0;
 	}
-	insert(&main_list, createnode(vertex,cp,ep, NULL, get_vertex, 1));
+	insert(&main_list, createnode(vertex, cp, ep, NULL, get_vertex, 1));
 }
 void Keyboard(unsigned char key, int x, int y) {
 	if (key == '[') {
@@ -151,12 +140,181 @@ void Keyboard(unsigned char key, int x, int y) {
 		printf("now_create_speed: %d\n", create_speed);
 	}
 	if (key == '-') {
-		move_speed -= 0.5;
+		if (move_speed > 1) {
+			move_speed -= 1;
+		}
 		printf("now_move_speed: %f\n", move_speed);
 	}
 	if (key == '=' || key == '+') {
-		move_speed += 0.5;
+		move_speed += 1;
 		printf("now_move_speed: %f\n", move_speed);
+	}
+	if (key == ',' || key == '<') {
+		if (max_polygon_shape > 4) {
+			max_polygon_shape--;
+		}
+		else {
+			max_polygon_shape = 3;
+		}
+		printf("shape : 3~%d\n", max_polygon_shape + 2);
+	}
+	if (key == '.' || key == '>') {
+		max_polygon_shape++;
+		printf("shape : 3~%d\n", max_polygon_shape + 2);
+	}
+	if (key == '1') {
+		if (!draw_mode) {
+			draw_mode = true;
+		}
+		else {
+			draw_mode = false;
+		}
+	}
+}/////
+void L_node_sep(int v_counter, coord* ic, Node* target, int* line_n) {
+	int temp_n[2];
+	temp_n[0] = line_n[0];
+	temp_n[1] = line_n[1];
+	// line_n의 데이터를 그대로 가져가서 쓰면 R_node_sep에서 훼손이 일어난다. 변수를 새로 받아서 오류를 방지한다.
+	coord* vertex = NULL;
+	coord* cp = NULL;
+	coord* ep = NULL;
+	float end_point_X = ((float)rand() / RAND_MAX) * 0.8 - 0.4;
+	vertex = (coord*)malloc(v_counter * sizeof(coord));	
+	cp = (coord*)malloc(v_counter * sizeof(coord));
+	ep = (coord*)malloc(v_counter * sizeof(coord));
+	//LINE_N1+1 이 LINE_N2-1와 같아질 때까지 진행한다.
+	int set = 1;
+	vertex[0] = ic[0];//시작점
+	cp[0] = ic[0];
+	while (temp_n[0] != temp_n[1]) {
+		temp_n[0]++;
+		vertex[set] = target->vertex[temp_n[0]];
+		cp[set]= target->vertex[temp_n[0]];
+		set++;
+	}
+	vertex[v_counter - 1]= ic[1];	//끝점
+	cp[v_counter - 1] = ic[1];
+	for (int j = 0; j < v_counter; j++) {
+		vertex[j].r = static_cast<float>(rand()) / RAND_MAX;
+		vertex[j].g = static_cast<float>(rand()) / RAND_MAX;
+		vertex[j].b = static_cast<float>(rand()) / RAND_MAX;
+		vertex[j].z = 0;
+		ep[j].x = end_point_X + cp[j].x;
+		ep[j].y = -1.1 + cp[j].y;
+		ep[j].z = 0;
+	}
+	insert(&main_list, createnode(vertex, cp, ep, NULL,v_counter, 0));
+}
+void R_node_sep(int v_counter, coord* ic, Node* target, int* line_n) {
+	int temp_n[2];
+	temp_n[0] = line_n[0];
+	temp_n[1] = line_n[1];
+	coord* vertex = NULL;
+	coord* cp = NULL;
+	coord* ep = NULL;
+	float end_point_X = ((float)rand() / RAND_MAX) * 0.8 - 0.4;
+	vertex = (coord*)malloc(v_counter * sizeof(coord));
+	cp = (coord*)malloc(v_counter * sizeof(coord));
+	ep = (coord*)malloc(v_counter * sizeof(coord));
+	//LINE_N1+1 이 LINE_N2-1와 같아질 때까지 진행한다.
+	vertex[0] = ic[1];
+	cp[0] = ic[1];
+	int set = 1;
+	while (temp_n[1] != target->vertex_counter-1) {
+		temp_n[1]++;
+		vertex[set] = target->vertex[temp_n[1]];
+		cp[set] = target->vertex[temp_n[1]];
+		set++;
+	}
+	temp_n[1] = 0;
+	while (temp_n[1] != temp_n[0] + 1) {
+		vertex[set] = target->vertex[temp_n[1]];
+		cp[set] = target->vertex[temp_n[1]];
+		temp_n[1]++;
+		set++;
+	}
+	vertex[v_counter - 1] = ic[0];
+	cp[v_counter - 1] = ic[0];
+	for (int j = 0; j < v_counter; j++) {
+		vertex[j].r = static_cast<float>(rand()) / RAND_MAX;
+		vertex[j].g = static_cast<float>(rand()) / RAND_MAX;
+		vertex[j].b = static_cast<float>(rand()) / RAND_MAX;
+		vertex[j].z = 0;
+		ep[j].x = end_point_X + cp[j].x;
+		ep[j].y = -1.1 + cp[j].y;
+		ep[j].z = 0;
+	}
+	insert(&main_list, createnode(vertex, cp, ep, NULL, v_counter, 0));
+}
+void real_slice(coord* ic, Node* target, int* line_n) {
+	if (line_n[0] - line_n[1] > 0) {//swap을 해준다. 대충 유사정렬이다.좀 더 깔끔ㄴ하게 슬라이스 각을 보자
+		int temp = line_n[1];
+		line_n[1] = line_n[0];
+		line_n[0] = temp;
+		coord ic_temp = ic[0];
+		ic[0] = ic[1];
+		ic[1] = ic_temp;
+	}
+	int L_vertex = line_n[1] - line_n[0] + 2;
+	int R_vertex = target->vertex_counter + 4 - L_vertex;
+	//L/R 두개 모두 몇각형을 만드는지 알려줄수 있다.
+	L_node_sep(L_vertex, ic, target, line_n);
+	R_node_sep(R_vertex, ic, target, line_n);
+}
+void slice() {
+	coord mouse[2];
+	Node* horse = main_list;
+	while (horse != NULL) {
+		if (horse->mouse_node == 1) {
+			mouse[0].x = horse->vertex[0].x;
+			mouse[0].y = horse->vertex[0].y;
+			mouse[1].x = horse->vertex[1].x;
+			mouse[1].y = horse->vertex[1].y;
+			horse->vertex[0].x = 0;
+			horse->vertex[0].y = 0;
+			horse->vertex[1].x = 0;
+			horse->vertex[1].y = 0;
+			break;
+		}
+		else {
+			horse = horse->next;
+		}
+	}
+	horse = main_list;
+	while (horse != NULL) {
+		int line_n[2];
+		coord intersection[2];
+		int count = 0;
+		for (int i = 0; i < horse->vertex_counter; i++) {
+			float t = ((mouse[0].x - horse->vertex[i].x) * (horse->vertex[i].y - horse->vertex[(i + 1) % horse->vertex_counter].y)
+				- (mouse[0].y - horse->vertex[i].y) * (horse->vertex[i].x - horse->vertex[(i + 1) % horse->vertex_counter].x))
+				/ ((mouse[0].x - mouse[1].x) * (horse->vertex[i].y - horse->vertex[(i + 1) % horse->vertex_counter].y)
+					- (mouse[0].y - mouse[1].y) * (horse->vertex[i].x - horse->vertex[(i + 1) % horse->vertex_counter].x));
+
+			float u = ((mouse[0].x - horse->vertex[i].x) * (mouse[0].y - mouse[1].y)
+				- (mouse[0].y - horse->vertex[i].y) * (mouse[0].x - mouse[1].x))
+				/ ((mouse[0].x - mouse[1].x) * (horse->vertex[i].y - horse->vertex[(i + 1) % horse->vertex_counter].y)
+					- (mouse[0].y - mouse[1].y) * (horse->vertex[i].x - horse->vertex[(i + 1) % horse->vertex_counter].x));
+			if ((0 <= t && t <= 1) && (0 <= u && u <= 1)) {
+				if (count == 0) {
+					line_n[0] = i;
+					intersection[0].x = mouse[0].x + t * (mouse[1].x - mouse[0].x);
+					intersection[0].y = mouse[0].y + t * (mouse[1].y - mouse[0].y);
+				}
+				else {
+					line_n[1] = i;
+					intersection[1].x = mouse[0].x + t * (mouse[1].x - mouse[0].x);
+					intersection[1].y = mouse[0].y + t * (mouse[1].y - mouse[0].y);
+				}
+				count++;
+			}
+		}
+		if (count == 2) {
+			real_slice(intersection, horse, line_n);
+			horse->mouse_node = 3;
+		}
+		horse = horse->next;
 	}
 }
 void Mouseclick(int button, int state, int x, int y) {
@@ -176,21 +334,8 @@ void Mouseclick(int button, int state, int x, int y) {
 		}
 	}
 	else if (button == GLUT_LEFT_BUTTON && state == GLUT_UP) {
-		//여기서 선분 캐스팅 해서 자르자
 		is_clicked = false;
-		Node* horse = main_list;
-		while (horse != NULL) {
-			if (horse->mouse_node == 1) {
-				horse->vertex[0].x = 0;
-				horse->vertex[0].y = 0;
-				horse->vertex[1].x = 0;
-				horse->vertex[1].y = 0;
-				break;
-			}
-			else {
-				horse = horse->next;
-			}
-		}
+		slice();
 	}
 	glutPostRedisplay();
 }
@@ -213,22 +358,29 @@ void move_polygon(int val) {
 	Node* horse = main_list;
 	while (horse != NULL) {
 		if (horse->mouse_node == 0) {
-			float t = horse->index/100.f;
+			float t = horse->index / 1000.f;
 			for (int i = 0; i < horse->vertex_counter; i++) {
-				horse->vertex[i].x = glm::pow((1 - t), 2) * horse->cp[i].x + 2 * t * (1 - t) * (0.666 * horse->cp[i].x + 0.333 * horse->ep[i].x) + t * t * horse->ep[i].x;
-				horse->vertex[i].y = glm::pow((1 - t), 2) * horse->cp[i].y + 2 * t * (1 - t) * (0.666 * horse->cp[i].y + 0.333 * horse->ep[i].y) + t * t * horse->ep[i].y;
+				horse->vertex[i].x = glm::pow((1 - t), 3) * horse->cp[i].x
+					+ 3 * glm::pow(t, 1) * glm::pow((1 - t), 2) * (0.75 * horse->cp[i].x + 0.25 * horse->ep[i].x)
+					+ 3 * glm::pow(t, 2) * glm::pow((1 - t), 1) * (-0.5 * horse->cp[i].x + 1.5 * horse->ep[i].x)
+					+ glm::pow(t, 3) * horse->ep[i].x;
+				horse->vertex[i].y = glm::pow((1 - t), 3) * horse->cp[i].y
+					+ 3 * glm::pow(t, 1) * glm::pow((1 - t), 2) * (1.65 * horse->cp[i].y - 0.65 * horse->ep[i].y)
+					+ 3 * glm::pow(t, 2) * glm::pow((1 - t), 1) * (0.25 * horse->cp[i].y + 0.75 * horse->ep[i].y)
+					+ glm::pow(t, 3) * horse->ep[i].y;
 			}
-			horse->index++;
+
+			horse->index += move_speed;
 		}
 		horse = horse->next;
 	}
 	glutPostRedisplay();
-	glutTimerFunc(50, move_polygon, 0);
+	glutTimerFunc(10, move_polygon, 0);
 }
 void auto_polygon(int val) {//폴리곤 자동생성
-	int get_rand_vertex = rand() % 4 + 3;// 3~6 각형만 생성하자
+	int get_rand_vertex = rand() %  max_polygon_shape+ 3;// 3~6 각형만 생성하자
 	float mid_point_X = (rand() % 2 == 0) ? -1.1 : 1.1;
-	float mid_point_Y = 0.6 + ((float)rand() / RAND_MAX) * 0.2;
+	float mid_point_Y = static_cast<float>(rand()) / RAND_MAX;
 	coord* vertex = NULL;
 	coord* cp = NULL;
 	coord* ep = NULL;
@@ -254,7 +406,7 @@ void auto_polygon(int val) {//폴리곤 자동생성
 		ep[j].y = -1 + 0.175f * glm::sin(angle);
 		ep[j].z = 0;
 	}
-	insert(&main_list, createnode(vertex, cp,ep, NULL, get_rand_vertex, 0));
+	insert(&main_list, createnode(vertex, cp, ep, NULL, get_rand_vertex, 0));
 	glutPostRedisplay();
 	glutTimerFunc(create_speed, auto_polygon, 0);
 }
@@ -268,20 +420,19 @@ void Delete(int val) {
 	Node* current = main_list;
 	Node* previous = NULL;
 	int idx = 0;
-	//여기서 문제가 있는듯?? 연속 삭제를 할 때 어떻게 문제가 생긴다
 	while (current != NULL) {
-		if (current->index > 100.f && current->mouse_node == 0) {
-			printf("in here\n"); 
+		if ((current->index > 1000.f && current->mouse_node == 0) || current->mouse_node == 3) {
 			if (previous == NULL) {
-				// If the first node meets the condition, update the head
 				main_list = current->next;
 			}
 			else {
-				// For other nodes, update the 'next' pointer of the previous node
 				previous->next = current->next;
 			}
 			Node* del = current;
 			current = current->next;
+			free(del->cp);//동적할당 배열 해제 해주는것 잊지않았다...
+			free(del->ep);
+			free(del->vertex);
 			free(del);
 		}
 		else {
@@ -294,7 +445,7 @@ void Delete(int val) {
 }
 void draw_poly(Node* list) {
 	Node* horse = list;
-	while (horse != NULL) {//리스트를 순회하면서 polygon draw
+	while (horse != NULL) {
 		if (horse->mouse_node == 1) {
 			glm::mat4 modelMatrix = glm::mat4(1.0f);
 			GLuint modelMatrixLocation = glGetUniformLocation(shaderProgramID, "modelMatrix");
@@ -308,7 +459,6 @@ void draw_poly(Node* list) {
 
 			glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
 			glEnableVertexAttribArray(1);
-			//glLineWidth(2.0f);
 			glDrawArrays(GL_LINES, 0, 2);
 		}
 		else if (horse->mouse_node == 0) {
@@ -325,8 +475,6 @@ void draw_poly(Node* list) {
 			glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
 			glEnableVertexAttribArray(1);
 			glDrawArrays(GL_POLYGON, 0, horse->vertex_counter);
-			//glDrawArrays(GL_LINE_STRIP, 0, horse->vertex_counter);
-
 			glBindBuffer(GL_ARRAY_BUFFER, 0);
 		}
 		horse = horse->next;
@@ -335,7 +483,12 @@ void draw_poly(Node* list) {
 GLvoid drawScene() {
 	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glPolygonMode(GL_FRONT_AND_BACK, GL_LINEAR);
+	if (!draw_mode) {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	}
+	else {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	}
 	draw_poly(main_list);
 
 
@@ -355,7 +508,7 @@ char* filetobuf(const char* file) {
 	fseek(fptr, 0, SEEK_END);
 	length = ftell(fptr);
 	buf = (char*)malloc(length + 1);
-	fseek(fptr, 0, SEEK_SET);//끝까지 읽었으니까 다시 돌아가야겠지??
+	fseek(fptr, 0, SEEK_SET);
 	fread(buf, length, 1, fptr);
 	fclose(fptr);
 	buf[length] = 0;
