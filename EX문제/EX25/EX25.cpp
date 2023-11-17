@@ -1,5 +1,4 @@
-﻿//15번은 14번 베이스로 코드변환이 주요점이다. 유념하여 실행하도록
-#define _CRT_SECURE_NO_WARNINGS //--- 프로그램 맨 앞에 선언할 것
+﻿#define _CRT_SECURE_NO_WARNINGS //--- 프로그램 맨 앞에 선언할 것
 #include <stdlib.h>
 #include <stdio.h>
 #include<time.h>
@@ -9,9 +8,9 @@
 #include <gl/glew.h>
 #include <gl/freeglut.h>
 #include <gl/freeglut_ext.h>
-#include <gl/glm/glm/glm.hpp>
-#include <gl/glm/glm/ext.hpp>
-#include <gl/glm/glm/gtc/matrix_transform.hpp>
+#include <gl/glm/glm.hpp>
+#include <gl/glm/ext.hpp>
+#include <gl/glm/gtc/matrix_transform.hpp>
 
 #define WINDOWS_HEIGHT 800
 #define WINDOWS_WIDTH 600
@@ -66,7 +65,7 @@ unsigned int cubelinedice[] = {
 	4,3,3,2,2,4
 };
 unsigned int tetradices[] = {
-	0,2,1,0,3,2,    
+	0,2,1,0,3,2,
 	0,1,4,
 	1,2,4,
 	2,3,4,
@@ -83,6 +82,7 @@ unsigned int tetralinedice[] = {
 void specialKeys(int key, int x, int y);
 void keyboard(unsigned char key, int x, int y);
 void rotation(int val);
+void light_rot(int val);
 void drawmidline();
 void initbuffer();
 void drawcube();
@@ -105,6 +105,7 @@ int drawmode = 0;
 float Xmove = 0;
 float Ymove = 0;
 float Zmove = 0;
+float light_theta = 0;
 int light_on = 0;
 void main(int argc, char** argv) {
 	srand(unsigned(time(NULL)));
@@ -139,6 +140,7 @@ void specialKeys(int key, int x, int y) {
 	}
 	glutPostRedisplay();
 }
+bool light_spin = false;
 void keyboard(unsigned char key, int x, int y) {
 	if (key == 'X') {
 		if (!already_run) {
@@ -202,6 +204,21 @@ void keyboard(unsigned char key, int x, int y) {
 		Zmove = 0;
 	}
 	if (key == 'r') {
+		if (!light_spin) {
+			light_spin = true;
+			glutTimerFunc(30, light_rot, 0);
+		}
+		else {
+			light_spin = false;
+		}
+	}
+	if (key == 'z') {
+		Light_Z += 0.01f;
+	}
+	if (key == 'Z') {
+		Light_Z -= 0.01f;
+	}
+	if (key == 'm') {
 		if (light_on == 0) {
 			light_on = 1;
 		}
@@ -209,44 +226,61 @@ void keyboard(unsigned char key, int x, int y) {
 			light_on = 0;
 		}
 	}
-	if (key == 'c') {
-		drawpoly = 1;
+	if (key == 'n') {
+		if (!drawpoly) {
+			drawpoly = 1;
+		}
+		else {
+			drawpoly = 0;
+		}
 	}
-	if (key == 'p') {
-		drawpoly = 0;
+	if (key == 'q' || key == 'Q'||key == 27) {
+		exit(0);
 	}
 	glutPostRedisplay();
 }
 void rotation(int val) {
 	if (rotating_mode == 0) {
 		cube_Xtheta -= 1;
-		glutTimerFunc(30, rotation, 0);
 	}
 	else if (rotating_mode == 1) {
 		cube_Xtheta += 1;
-		glutTimerFunc(30, rotation, 0);
 	}
 	else if (rotating_mode == 2) {
 		cube_Ytheta += 1;
-		glutTimerFunc(30, rotation, 0);
 	}
 	else if (rotating_mode == 3) {
 		cube_Ytheta -= 1;
-		glutTimerFunc(30, rotation, 0);
 	}
-	else {
-		return;
+
+	glutTimerFunc(30, rotation, 0);
+	glutPostRedisplay();
+}
+void light_rot(int val) {
+	if (light_spin) {
+		light_theta++;
+		glutTimerFunc(30, light_rot, 0);
 	}
 	glutPostRedisplay();
+}
+void light_effect() {
+	//조명효과 적용여부
+	GLuint BoolUniformLocation = glGetUniformLocation(shaderProgramID, "light_Mode");
+	glUniform1i(BoolUniformLocation, light_on);
+	//디퓨즈 조명 위치
+	glm::vec3 lightPosition(Light_X, Light_Y, Light_Z);
+	GLuint lightPositionUniformLocation = glGetUniformLocation(shaderProgramID, "lightPosition");
+	glUniform3fv(lightPositionUniformLocation, 1, &lightPosition[0]);
+	//디퓨즈 조명 회전 결정
+	GLuint lightMatrixLocation = glGetUniformLocation(shaderProgramID, "lightMatrix");
+	glm::mat4 lightMatrix = glm::mat4(1.0f);
+	lightMatrix = glm::rotate(lightMatrix, glm::radians(light_theta), glm::vec3(0.0f, 1.0f, 0.0f));
+	glUniformMatrix4fv(lightMatrixLocation, 1, GL_FALSE, glm::value_ptr(lightMatrix));
 }
 GLvoid drawScene() {
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	GLuint BoolUniformLocation = glGetUniformLocation(shaderProgramID, "light_Mode");
-	glUniform1i(BoolUniformLocation, light_on);
-	glm::vec3 lightPosition(Light_X, Light_Y, Light_Z);
-	GLuint lightPositionUniformLocation = glGetUniformLocation(shaderProgramID, "lightPosition");
-	glUniform3fv(lightPositionUniformLocation, 1, &lightPosition[0]);
+	light_effect();
 	if (cullface) {
 		glEnable(GL_DEPTH_TEST);
 	}
@@ -291,7 +325,6 @@ void drawmidline() {
 }
 void drawcube() {
 	GLuint modelMatrixLocation = glGetUniformLocation(shaderProgramID, "modelMatrix");
-	glm::vec3 center(0.0f, 0.0f, 0.0f);
 	glm::mat4 modelMatrix = glm::mat4(1.0f);
 	glm::mat4 rotationMatrix = glm::mat4(1.0f);
 	glm::mat4 scaleMatrix = glm::mat4(1.0f);
@@ -356,8 +389,8 @@ void drawtetra() {
 	glm::mat4 translationMatrix = glm::mat4(1.0f);
 
 	rotationMatrix = glm::rotate(rotationMatrix, glm::radians(-30.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-	modelMatrix*=
-	modelMatrix *= rotationMatrix;
+	modelMatrix *=
+		modelMatrix *= rotationMatrix;
 	translationMatrix = glm::translate(translationMatrix, glm::vec3(Xmove, Ymove, Zmove));
 	modelMatrix *= translationMatrix;
 	rotationMatrix = glm::rotate(rotationMatrix, glm::radians(cube_Xtheta), glm::vec3(1.0f, 0.0f, 0.0f));
@@ -397,15 +430,14 @@ void drawtetra() {
 
 		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)(3 * sizeof(float)));
 		glEnableVertexAttribArray(1);
-		
+
 		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)(6 * sizeof(float)));
 		glEnableVertexAttribArray(2);
-		
+
 		glDrawElements(GL_LINES, 36, GL_UNSIGNED_INT, 0);
 
 	}
 }
-
 void initbuffer() {
 	glUseProgram(shaderProgramID);
 	glBindVertexArray(vao);

@@ -8,6 +8,7 @@ out vec3 out_Normal;
 out vec3 world_Position;
 out vec3 out_lightPosition;
 uniform mat4 modelMatrix;
+uniform mat4 lightMatrix;
 uniform vec3 lightPosition;
 
 void main (void){
@@ -16,5 +17,5 @@ void main (void){
 	gl_Position = vec4(world_Position,1.0);
 	out_Color = in_Color;
 	out_Normal = vec3(modelMatrix*vec4(in_Normal,1.0));
-	out_lightPosition = lightPosition; 
+	out_lightPosition = vec3(lightMatrix * vec4(lightPosition,1.0));
 }

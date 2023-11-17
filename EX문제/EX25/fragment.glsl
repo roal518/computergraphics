@@ -16,7 +16,5 @@ void main(void){
 	if (light_Mode == 0){
 		result = (diffuse+ambient)*out_Color ; 
 	}
-
-//	vec3 result = vec3(brightness,brightness,brightness);
 	FragColor = vec4(result, 1.0);
 } 
