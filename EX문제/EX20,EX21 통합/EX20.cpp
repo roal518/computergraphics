@@ -8,9 +8,9 @@
 #include <gl/glew.h>
 #include <gl/freeglut.h>
 #include <gl/freeglut_ext.h>
-#include <gl/glm/glm/glm.hpp>
-#include <gl/glm/glm/ext.hpp>
-#include <gl/glm/glm/gtc/matrix_transform.hpp>
+#include <gl/glm/glm.hpp>
+#include <gl/glm/ext.hpp>
+#include <gl/glm/gtc/matrix_transform.hpp>
 #define WINDOWS_HEIGHT 800
 #define WINDOWS_WIDTH 600
 struct coord {
@@ -57,7 +57,8 @@ void Son_spin(int val);
 void Horn_spin(int val);
 void go_to_mid_arm(int val);
 void go_to_mid_horn(int val);
-
+void cam_spin(int val);
+void cam_spinner(int val);
 
 
 
@@ -82,8 +83,6 @@ void menu() {
 	printf("y/Y: 카메라 기준 y축에 대하여 회전\n");
 	printf("r/R: 화면의 중심의 y축에 대하여 카메라가 회전 (중점에 대하여 공전)\n");
 	printf("a/A: r 명령어와 같이 화면의 중심의 축에 대하여 카메라가 회전하는 애니메이션을 진행한다/멈춘다.\n");
-	printf("s/S: 모든 움직임 멈추기\n");
-	printf("c/C: 모든 움직임이 초기화된다\n");
 	printf("Q: 프로그램 종료하기\n");
 }
 void main(int argc, char** argv) {
@@ -101,7 +100,7 @@ void main(int argc, char** argv) {
 	make_shaderProgram();
 	glutDisplayFunc(drawScene);
 	glutKeyboardFunc(keyboard);
-	glutReshapeFunc(Reshape);
+	//glutReshapeFunc(Reshape);
 	glutMainLoop();
 }
 bool viewmode = false;
@@ -115,7 +114,10 @@ bool is_equal_arm = false;
 bool is_equal_horn = false;
 bool is_x_come = false;
 bool is_y_come = false;
-
+bool cam_spin_ = false;
+bool viewing_mode = false;
+bool is_cam_spining = false;
+float y_cam_spin = 0.0f;
 float x_horn_equal = 7.5f;
 float x_arm_equal = 15.0f;
 float x_cam_move = 0.0f;
@@ -127,7 +129,13 @@ float y_crane_theta_son = 0.0f;//only horn,arm spinng
 float y_crane_horn = 0.0f;
 void keyboard(unsigned char key, int x, int y) {
 	if (key == 'p') {
-
+		if (!is_cam_spining) {
+			is_cam_spining = true;
+			glutTimerFunc(30, cam_spinner, 0);
+		}
+		else {
+			is_cam_spining = false;
+		}
 	}
 	if (key == 'l') {
 		if (!viewmode) {
@@ -239,6 +247,21 @@ void keyboard(unsigned char key, int x, int y) {
 			is_horn = false;
 		}
 	}
+	if (key == 'r') {
+		y_cam_spin++;
+	}
+	if (key == 'R') {
+		y_cam_spin--;
+	}
+	if (key == 'q') {
+		if (!cam_spin_) {
+			cam_spin_ = true;
+			glutTimerFunc(30, cam_spin, 0);
+		}
+		else {
+			cam_spin_ = false;
+		}
+	}
 	if (key == 'e') {
 		is_son = false;
 		is_horn = false;
@@ -250,12 +273,12 @@ void keyboard(unsigned char key, int x, int y) {
 		glutTimerFunc(30, go_to_mid_horn, 0);
 	}
 	if (key == 'E') {
-
+		//왜 없어짐???????
 	}
 	if (key == 'T') {
-
+		//????????????
 	}
-	if (key == 's') {
+	if (key == 'u') {
 		is_move = false;//move_crane running check timerfunc
 		is_move_foward = false;
 		is_top = false;//top_spin running check timerfunc oh shit
@@ -266,6 +289,14 @@ void keyboard(unsigned char key, int x, int y) {
 		is_equal_horn = false;
 		is_x_come = false;
 		is_y_come = false;
+	}
+	if (key == '1') {
+		if (!viewing_mode) {
+			viewing_mode = true;
+		}
+		else {
+			viewing_mode = false;			
+		}
 	}
 	glutPostRedisplay();
 }
@@ -280,6 +311,20 @@ void Horn_spin(int val) {
 		}
 		y_crane_horn--;
 		glutTimerFunc(30, Horn_spin, 0);
+	}
+	glutPostRedisplay();
+}
+void cam_spin(int val) {
+	if (cam_spin_) {
+		y_cam_spin++;
+		glutTimerFunc(30, cam_spin, 0);
+	}
+	glutPostRedisplay();
+}
+void cam_spinner(int val) {
+	if (is_cam_spining) {
+		y_cam_move++;
+		glutTimerFunc(30, cam_spinner, 0);
 	}
 	glutPostRedisplay();
 }
@@ -340,7 +385,7 @@ void go_to_mid_arm(int val) {
 			is_equal_arm = false;
 			arm_swap = true;
 		}
-		x_arm_equal-=0.1f;
+		x_arm_equal -= 0.1f;
 		glutTimerFunc(30, go_to_mid_arm, 0);
 	}
 	else {
@@ -380,8 +425,6 @@ void go_to_mid_horn(int val) {
 void draw_mid_line() {
 	GLuint modelMatrixLocation = glGetUniformLocation(shaderProgramID, "modelMatrix");
 	glm::mat4 modelMatrix = glm::mat4(1.0f);
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(10.f), glm::vec3(1.0f, 0.0f, 0.0f));
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(10.f), glm::vec3(0.0f, 1.0f, 0.0f));
 
 	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelMatrix));
 	glBindBuffer(GL_ARRAY_BUFFER, midvbo);
@@ -399,8 +442,6 @@ void draw_ground() {
 	GLuint modelMatrixLocation = glGetUniformLocation(shaderProgramID, "modelMatrix");
 	glm::mat4 modelMatrix = glm::mat4(1.0f);
 
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(10.f), glm::vec3(1.0f, 0.0f, 0.0f));
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(10.f), glm::vec3(0.0f, 1.0f, 0.0f));
 	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelMatrix));
 
 
@@ -417,8 +458,6 @@ void draw_ground() {
 void draw_chest() {
 	GLuint modelMatrixLocation = glGetUniformLocation(shaderProgramID, "modelMatrix");
 	glm::mat4 modelMatrix = glm::mat4(1.0f);
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(10.f), glm::vec3(1.0f, 0.0f, 0.0f));
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(10.f), glm::vec3(0.0f, 1.0f, 0.0f));
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(x_crane_move, 0.0f, 0.0f));
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(-y_crane_theta_mom), glm::vec3(0.0f, 1.0f, 0.0f));
 	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelMatrix));
@@ -437,8 +476,6 @@ void draw_chest() {
 void draw_head() {
 	GLuint modelMatrixLocation = glGetUniformLocation(shaderProgramID, "modelMatrix");
 	glm::mat4 modelMatrix = glm::mat4(1.0f);
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(10.f), glm::vec3(1.0f, 0.0f, 0.0f));
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(10.f), glm::vec3(0.0f, 1.0f, 0.0f));
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(x_crane_move, 0.0f, 0.0f));
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(y_crane_theta_mom), glm::vec3(0.0f, 1.0f, 0.0f));
 	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelMatrix));
@@ -457,8 +494,6 @@ void draw_head() {
 void draw_R_arm() {
 	GLuint modelMatrixLocation = glGetUniformLocation(shaderProgramID, "modelMatrix");
 	glm::mat4 modelMatrix = glm::mat4(1.0f);
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(10.f), glm::vec3(1.0f, 0.0f, 0.0f));
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(10.f), glm::vec3(0.0f, 1.0f, 0.0f));
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(x_crane_move, 0.0f, 0.0f));
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(-y_crane_theta_mom), glm::vec3(0.0f, 1.0f, 0.0f));
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(x_arm_equal, 0, 0));
@@ -479,8 +514,6 @@ void draw_R_arm() {
 void draw_L_arm() {
 	GLuint modelMatrixLocation = glGetUniformLocation(shaderProgramID, "modelMatrix");
 	glm::mat4 modelMatrix = glm::mat4(1.0f);
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(10.f), glm::vec3(1.0f, 0.0f, 0.0f));
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(10.f), glm::vec3(0.0f, 1.0f, 0.0f));
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(x_crane_move, 0.0f, 0.0f));
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(-y_crane_theta_mom), glm::vec3(0.0f, 1.0f, 0.0f));
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(-x_arm_equal, 0, 0));
@@ -501,8 +534,6 @@ void draw_L_arm() {
 void draw_R_horn() {
 	GLuint modelMatrixLocation = glGetUniformLocation(shaderProgramID, "modelMatrix");
 	glm::mat4 modelMatrix = glm::mat4(1.0f);
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(10.f), glm::vec3(1.0f, 0.0f, 0.0f));
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(10.f), glm::vec3(0.0f, 1.0f, 0.0f));
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(x_crane_move, 0.0f, 0.0f));
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(y_crane_theta_mom), glm::vec3(0.0f, 1.0f, 0.0f));
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(x_horn_equal, 0, 0));
@@ -525,8 +556,6 @@ void draw_R_horn() {
 void draw_L_horn() {
 	GLuint modelMatrixLocation = glGetUniformLocation(shaderProgramID, "modelMatrix");
 	glm::mat4 modelMatrix = glm::mat4(1.0f);
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(10.f), glm::vec3(1.0f, 0.0f, 0.0f));
-	modelMatrix = glm::rotate(modelMatrix, glm::radians(10.f), glm::vec3(0.0f, 1.0f, 0.0f));
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(x_crane_move, 0.0f, 0.0f));
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(y_crane_theta_mom), glm::vec3(0.0f, 1.0f, 0.0f));
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(-x_horn_equal, 0, 0));
@@ -534,7 +563,7 @@ void draw_L_horn() {
 	modelMatrix = glm::rotate(modelMatrix, glm::radians(y_crane_horn), glm::vec3(0.0f, 0.0f, 1.0f));
 	modelMatrix = glm::translate(modelMatrix, glm::vec3(0, 0, -15));
 	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelMatrix));
-	//glBindBuffer(GL_ARRAY_BUFFER, horn_vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, horn_vbo);
 	glBufferData(GL_ARRAY_BUFFER, 8 * 6 * sizeof(float), horn, GL_STATIC_DRAW);
 
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
@@ -560,14 +589,15 @@ void robot() {
 void viewproj() {
 	GLuint projectionLocation = glGetUniformLocation(shaderProgramID, "projectionTransform");
 	GLuint viewLocation = glGetUniformLocation(shaderProgramID, "viewTransform");
+
 	glm::mat4 view = glm::mat4(1.0f);
+
 	view = glm::translate(view, glm::vec3(x_cam_move, 0, z_cam_move));
+	view = glm::translate(view, glm::vec3(0.0, -20.0, -sqrt(101)));
+	view = glm::rotate(view, glm::radians(y_cam_spin), glm::vec3(0.0f, 1.0f, 0.0f));
+	view = glm::translate(view, glm::vec3(0, 0, 100));
 	view = glm::rotate(view, glm::radians(y_cam_move), glm::vec3(0.0f, 1.0f, 0.0f));
-
-	view = glm::rotate(view, glm::radians(-10.f), glm::vec3(1.0f, 0.0f, 0.0f));
-	view = glm::rotate(view, glm::radians(-10.f), glm::vec3(0.0f, 1.0f, 0.0f));
-
-	view = glm::translate(view, glm::vec3(0.0, -1.0, -200.0));
+	view = glm::translate(view, glm::vec3(0, 0, -100));
 	glUniformMatrix4fv(viewLocation, 1, GL_FALSE, glm::value_ptr(view));
 
 	glm::mat4 projection = glm::mat4(1.0f);
@@ -575,19 +605,86 @@ void viewproj() {
 	projection = glm::translate(projection, glm::vec3(0.0, -1.0, -100.0));
 	glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, glm::value_ptr(projection));
 }
-GLvoid drawScene() {
+void second_viewproj() {
+	GLuint projectionLocation = glGetUniformLocation(shaderProgramID, "projectionTransform");
+	GLuint viewLocation = glGetUniformLocation(shaderProgramID, "viewTransform");
+
+	glm::mat4 view = glm::mat4(1.0f);
+
+	view = glm::translate(view, glm::vec3(x_cam_move, z_cam_move, 0));
+	view = glm::rotate(view, glm::radians(y_cam_spin), glm::vec3(0.0f, 1.0f, 0.0f));
+	view = glm::translate(view, glm::vec3(0, 0, -sqrt(101)));
+	view = glm::rotate(view, glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+	view = glm::translate(view, glm::vec3(0, 0, 100));
+	view = glm::rotate(view, glm::radians(y_cam_move), glm::vec3(0.0f, 1.0f, 0.0f));
+	view = glm::translate(view, glm::vec3(0, 0, -100));
+	glUniformMatrix4fv(viewLocation, 1, GL_FALSE, glm::value_ptr(view));
+
+
+	glm::mat4 projection = glm::mat4(1.0f);
+	projection = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 400.0f);
+	projection = glm::translate(projection, glm::vec3(0.0, -1.0, -100.0));
+	glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, glm::value_ptr(projection));;
+}
+void third_viewproj() {
+	GLuint projectionLocation = glGetUniformLocation(shaderProgramID, "projectionTransform");
+	GLuint viewLocation = glGetUniformLocation(shaderProgramID, "viewTransform");
+
+	glm::mat4 view = glm::mat4(1.0f);
+
+	view = glm::translate(view, glm::vec3(x_cam_move, 0, z_cam_move));
+	view = glm::rotate(view, glm::radians(y_cam_spin), glm::vec3(0.0f, 1.0f, 0.0f));
+	view = glm::translate(view, glm::vec3(0, 0, -sqrt(101)));
+	view = glm::rotate(view, glm::radians(y_cam_spin), glm::vec3(0.0f, 1.0f, 0.0f));
+	view = glm::translate(view, glm::vec3(0, 0, 100));
+	view = glm::rotate(view, glm::radians(y_cam_move), glm::vec3(0.0f, 1.0f, 0.0f));
+	view = glm::translate(view, glm::vec3(0, 0, -100));
+	glUniformMatrix4fv(viewLocation, 1, GL_FALSE, glm::value_ptr(view));
+
+
+	glm::mat4 projection = glm::mat4(1.0f);
+	projection = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 400.0f);
+	projection = glm::translate(projection, glm::vec3(0.0, -1.0, -100.0));
+	glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, glm::value_ptr(projection));;
+}
+void first_View() {
+	glViewport(0, 0, 400, 600);
 	viewproj();
-	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glEnable(GL_DEPTH_TEST);
 	draw_mid_line();
 	draw_ground();
 	robot();
-	glutSwapBuffers();
 }
-GLvoid Reshape(int w, int h) {
-	glViewport(0, 0, w, h);
+void second_View() {
+	glViewport(400, 300, 800, 600);
 
+	second_viewproj();
+	draw_mid_line();
+	draw_ground();
+	robot();}
+void third_View() {
+	glViewport(400, 0, 800, 300); 
+	third_viewproj();
+	draw_mid_line();
+	draw_ground();
+	robot();
+}
+GLvoid drawScene() {
+	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glEnable(GL_DEPTH_TEST);
+	if (viewing_mode) {
+		first_View();
+		second_View();
+		third_View();
+	}
+	else{
+		glViewport(0, 0, 800, 600);
+		viewproj();
+		draw_mid_line();
+		draw_ground();
+		robot();
+	}
+	glutSwapBuffers();
 }
 
 void make_mid() {
@@ -797,18 +894,14 @@ void makeshape() {
 }
 void initbuffer() {
 	glUseProgram(shaderProgramID);
-	glGenVertexArrays(1, &vao);
 	glBindVertexArray(vao);
-
 	glGenBuffers(1, &arm_vbo);
-	//glBindBuffer(GL_ARRAY_BUFFER, arm_vbo);
 	glGenBuffers(1, &head_vbo);
 	glGenBuffers(1, &chest_vbo);
 	glGenBuffers(1, &arm_vbo);
 	glGenBuffers(1, &horn_vbo);
 	glGenBuffers(1, &midvbo);
 	glGenBuffers(1, &groundvbo);
-
 	glGenBuffers(1, &ebo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
 }
